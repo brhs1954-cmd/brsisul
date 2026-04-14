@@ -32,7 +32,7 @@ function doGet(e) {
   const rows = data.slice(1);
   
   const result = rows.map(row => {
-    let obj = {};
+    let obj = { "__raw": row };
     headers.forEach((header, i) => {
       let value = row[i];
       if (value instanceof Date) {

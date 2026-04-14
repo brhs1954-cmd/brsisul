@@ -121,19 +121,41 @@ const App: React.FC = () => {
       }
 
       if (vehicleData && Array.isArray(vehicleData)) {
-        const vehicleList = vehicleData.map((row: any) => ({
-          id: String(getSheetValue(row, '차량번호') || '').trim(),
-          type: String(getSheetValue(row, '차종') || '').includes('버스') ? 'BUS' : 'CAR',
-          model: String(getSheetValue(row, '차종', '모델/차종') || ''),
-          plateNumber: String(getSheetValue(row, '차량번호') || ''),
-          status: 'OPERATING',
-          mileage: Number(getSheetValue(row, '주행거리') || 0),
-          lastInspection: formatDateToKST(getSheetValue(row, '최종검사')),
-          nextInspection: formatDateToKST(getSheetValue(row, '차기검사')),
-          orgName: String(getSheetValue(row, '소속기관', '기관명') || '').trim(),
-          // '차주 및 비고' 컬럼을 최우선으로 참고하도록 수정
-          ownerInfo: String(getSheetValue(row, '차주 및 비고', '비고및차주', '비고') || '').trim()
-        } as Vehicle));
+        const vehicleList = vehicleData
+          .filter((row: any) => {
+            // A열(index 0)에 데이터가 있는 셀만 추출
+            const colA = row.__raw ? row.__raw[0] : getSheetValue(row, '순번', 'id', '차량번호', 'no');
+            return colA !== undefined && String(colA).trim() !== "";
+          })
+          .map((row: any) => {
+            // E열(index 4) 참고하여 추출
+            const colE = row.__raw ? String(row.__raw[4] || '') : '';
+            const typeValue = (colE || String(getSheetValue(row, '대형/승합여부', '구분', '유형', '차종') || '')).trim();
+            
+            let type: 'BUS' | 'VAN' | 'CAR' | 'SPECIAL' = 'CAR';
+            
+            // '대형' 또는 '승합' 키워드가 포함되면 BUS(대형/승합)로 분류
+            if (typeValue.includes('대형') || typeValue.includes('승합') || typeValue.includes('버스')) {
+              type = 'BUS';
+            } else if (typeValue.includes('특수') || typeValue.includes('작업')) {
+              type = 'SPECIAL';
+            } else if (typeValue.includes('승용')) {
+              type = 'CAR';
+            }
+
+            return {
+              id: String(getSheetValue(row, '차량번호', 'id') || '').trim() || `v-${Math.random()}`,
+              type,
+              model: String(getSheetValue(row, '차종', '모델/차종', '모델') || ''),
+              plateNumber: String(getSheetValue(row, '차량번호', '번호') || ''),
+              status: 'OPERATING',
+              mileage: Number(getSheetValue(row, '주행거리', '거리') || 0),
+              lastInspection: formatDateToKST(getSheetValue(row, '최종검사')),
+              nextInspection: formatDateToKST(getSheetValue(row, '차기검사')),
+              orgName: String(getSheetValue(row, '소속기관', '기관명') || '').trim(),
+              ownerInfo: String(getSheetValue(row, '차주 및 비고', '비고및차주', '비고') || '').trim()
+            } as Vehicle;
+          });
         setRawVehicles(vehicleList);
       }
 
