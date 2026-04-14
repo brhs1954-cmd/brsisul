@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 @theme {
-  --font-sans: "Pretendard", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Noto Sans KR", ui-sans-serif, system-ui, sans-serif;
 }
 
 /* Global Styles */
