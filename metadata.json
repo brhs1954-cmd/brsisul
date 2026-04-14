@@ -1,0 +1,7 @@
+{
+  "name": "보령학사 시설물 통합관리 시스템",
+  "description": "A comprehensive mobile-responsive management system for Boryeong Haksa Social Welfare Foundation, featuring interactive mapping, maintenance logs, landscaping management, and parking control.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
