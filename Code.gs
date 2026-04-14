@@ -9,6 +9,12 @@ function doGet(e) {
   const sheet = ss.getSheetByName(sheetName);
   
   if (!sheet) {
+    // 필수 시트가 없는 경우 에러 대신 빈 배열 반환 (초기화 편의성)
+    const autoCreateSheets = ["log", "관로관리", "공지사항", "설비관리", "차량현황"];
+    if (autoCreateSheets.indexOf(sheetName) !== -1) {
+      return ContentService.createTextOutput(JSON.stringify([]))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
     return ContentService.createTextOutput(JSON.stringify({error: "'" + sheetName + "' 시트를 찾을 수 없습니다."}))
       .setMimeType(ContentService.MimeType.JSON);
   }
@@ -223,10 +229,12 @@ function doPost(e) {
       "비고": info.remarks, "remarks": info.remarks
     };
   } else if (action === "LOG") {
-    const logSheet = ss.getSheetByName("log");
-    if (logSheet) {
-      logSheet.appendRow([new Date(), params.org, params.category, params.title, JSON.stringify(params.value)]);
+    let logSheet = ss.getSheetByName("log");
+    if (!logSheet) {
+      logSheet = ss.insertSheet("log");
+      logSheet.appendRow(["timestamp", "org", "category", "title", "value"]);
     }
+    logSheet.appendRow([new Date(), params.org, params.category, params.title, JSON.stringify(params.value)]);
     return ContentService.createTextOutput(JSON.stringify({result: "success"}))
       .setMimeType(ContentService.MimeType.JSON);
   }
