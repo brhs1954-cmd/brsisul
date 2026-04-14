@@ -1,6 +1,8 @@
 
 import React, { useState } from 'react';
-import { Hotspot, FacilityStatus, FacilityDocument } from '../types';
+import { 
+  Hotspot, FacilityStatus, FacilityDocument, ManagementLog 
+} from '../types';
 import { 
   X, Calendar, Clipboard, Trees, Hammer, Activity, User, 
   ChevronRight, FileText, FileImage, FileCode, Plus, 
@@ -50,6 +52,29 @@ const FacilityDetailModal: React.FC<FacilityDetailModalProps> = ({ facility, onC
       onUpdate(updatedFacility);
       setIsUploading(false);
     }, 1500);
+  };
+
+  const handleAddHistory = () => {
+    const description = prompt('관리 기록 내용을 입력하세요:');
+    if (!description) return;
+
+    const worker = prompt('작업자 이름을 입력하세요:');
+    if (!worker) return;
+
+    const newLog: ManagementLog = {
+      id: `log-${Date.now()}`,
+      date: new Date().toISOString().split('T')[0],
+      type: 'maintenance',
+      description,
+      worker
+    };
+
+    const updatedFacility = {
+      ...facility,
+      history: [newLog, ...facility.history]
+    };
+
+    onUpdate(updatedFacility);
   };
 
   const getImageUrl = (url?: string) => {
@@ -341,7 +366,10 @@ const FacilityDetailModal: React.FC<FacilityDetailModalProps> = ({ facility, onC
           >
             모달 닫기
           </button>
-          <button className="px-6 py-2.5 text-[12px] font-black bg-blue-600 text-white rounded-2xl shadow-xl shadow-blue-200 hover:bg-blue-700 transition-all flex items-center">
+          <button 
+            onClick={handleAddHistory}
+            className="px-6 py-2.5 text-[12px] font-black bg-blue-600 text-white rounded-2xl shadow-xl shadow-blue-200 hover:bg-blue-700 transition-all flex items-center"
+          >
             관리 기록 추가 <ChevronRight className="w-4 h-4 ml-1" />
           </button>
         </div>

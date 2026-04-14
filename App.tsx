@@ -97,13 +97,14 @@ const App: React.FC = () => {
 
   const refreshDataFromSheets = async () => {
     try {
-      const [buildingData, infoData, vehicleData, equipmentData, noticeData, pathData] = await Promise.all([
+      const [buildingData, infoData, vehicleData, equipmentData, noticeData, pathData, logData] = await Promise.all([
         ApiService.fetchData("건축물관리"),
         ApiService.fetchData("info"),
         ApiService.fetchData("차량현황"),
         ApiService.fetchData("설비관리"),
         ApiService.fetchData("공지사항"),
-        ApiService.fetchData("관로관리")
+        ApiService.fetchData("관로관리"),
+        ApiService.fetchData("log")
       ]);
 
       if (infoData && Array.isArray(infoData)) {
@@ -192,6 +193,35 @@ const App: React.FC = () => {
         setPaths(pathList as FacilityPath[]);
       }
 
+      let historyMap: Record<string, any[]> = {};
+      if (logData && Array.isArray(logData)) {
+        logData.forEach((row: any) => {
+          const org = String(getSheetValue(row, 'org') || '').trim();
+          const category = String(getSheetValue(row, 'category') || '').trim();
+          if (category.toUpperCase() === 'MAINTENANCE') {
+            if (!historyMap[org]) historyMap[org] = [];
+            
+            let value = {};
+            try {
+              const valRaw = getSheetValue(row, 'value');
+              value = typeof valRaw === 'string' ? JSON.parse(valRaw) : (valRaw || {});
+            } catch(e) {}
+
+            historyMap[org].push({
+              id: `log-${Date.now()}-${Math.random()}`,
+              date: formatDateToKST(getSheetValue(row, 'timestamp')),
+              type: 'maintenance',
+              description: String(getSheetValue(row, 'title') || ''),
+              worker: (value as any).worker || '관리자'
+            });
+          }
+        });
+        // 최신순 정렬
+        Object.keys(historyMap).forEach(key => {
+          historyMap[key].sort((a, b) => b.date.localeCompare(a.date));
+        });
+      }
+
       if (buildingData && Array.isArray(buildingData)) {
         const mergedFacilities = buildingData.map((row: any) => {
           const rowId = String(getSheetValue(row, 'id') || '').trim();
@@ -204,7 +234,7 @@ const App: React.FC = () => {
             x: parseFloat(getSheetValue(row, 'coordX', 'x') || '0'),
             y: parseFloat(getSheetValue(row, 'coordY', 'y') || '0'),
             status: FacilityStatus.NORMAL,
-            history: [],
+            history: historyMap[facilityName] || [],
             construction: [],
             documents: [],
             buildingInfo: {
@@ -317,6 +347,30 @@ const App: React.FC = () => {
     refreshDataFromSheets();
   };
 
+  const handleUpdateFacility = async (updatedFacility: Hotspot) => {
+    // UI 즉시 업데이트
+    setFacilities(prev => prev.map(f => f.id === updatedFacility.id ? updatedFacility : f));
+    
+    // 만약 새로운 히스토리가 추가되었다면 (가장 최근 것)
+    if (updatedFacility.history.length > (selectedFacility?.history.length || 0)) {
+      const newLog = updatedFacility.history[0];
+      try {
+        await ApiService.submitData({
+          org: updatedFacility.name,
+          category: 'MAINTENANCE',
+          title: newLog.description,
+          value: { worker: newLog.worker }
+        });
+        // 서버 데이터와 동기화
+        refreshDataFromSheets();
+      } catch (error) {
+        console.error("History sync error:", error);
+      }
+    }
+    
+    setSelectedFacility(updatedFacility);
+  };
+
   const renderContent = () => {
     switch (activeTab) {
       case 'home': return <Dashboard facilities={facilities} contacts={contacts} notices={notices} onNoticeClick={(n) => setSelectedNotice(n)} onAction={(tab) => setActiveTab(tab)} />;
@@ -405,7 +459,13 @@ const App: React.FC = () => {
           {renderContent()}
         </div>
       </main>
-      {selectedFacility && <FacilityDetailModal facility={selectedFacility} onClose={() => setSelectedFacility(null)} onUpdate={() => {}} />}
+      {selectedFacility && (
+        <FacilityDetailModal 
+          facility={selectedFacility} 
+          onClose={() => setSelectedFacility(null)} 
+          onUpdate={handleUpdateFacility} 
+        />
+      )}
       {selectedEquipment && <EquipmentDetailModal equipment={selectedEquipment} onClose={() => setSelectedEquipment(null)} />}
       {selectedNotice && <NoticeDetailModal notice={selectedNotice} onClose={() => setSelectedNotice(null)} />}
     </div>
