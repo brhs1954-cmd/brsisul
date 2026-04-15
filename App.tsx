@@ -97,14 +97,15 @@ const App: React.FC = () => {
 
   const refreshDataFromSheets = async () => {
     try {
-      const [buildingData, infoData, vehicleData, equipmentData, noticeData, pathData, logData] = await Promise.all([
+      const [buildingData, infoData, vehicleData, equipmentData, noticeData, pathData, logData, constructionData] = await Promise.all([
         ApiService.fetchData("건축물관리"),
         ApiService.fetchData("info"),
         ApiService.fetchData("차량현황"),
         ApiService.fetchData("설비관리"),
         ApiService.fetchData("공지사항"),
         ApiService.fetchData("관로관리"),
-        ApiService.fetchData("log")
+        ApiService.fetchData("log"),
+        ApiService.fetchData("공사관리")
       ]);
 
       if (infoData && Array.isArray(infoData)) {
@@ -244,6 +245,23 @@ const App: React.FC = () => {
         });
       }
 
+      let constructionMap: Record<string, any[]> = {};
+      if (constructionData && Array.isArray(constructionData)) {
+        constructionData.forEach((row: any) => {
+          const org = String(getSheetValue(row, '대상시설', '시설명', 'org') || '').trim();
+          if (org) {
+            if (!constructionMap[org]) constructionMap[org] = [];
+            constructionMap[org].push({
+              id: `const-${Date.now()}-${Math.random()}`,
+              date: formatDateToKST(getSheetValue(row, '날짜', '기간', 'timestamp')),
+              title: String(getSheetValue(row, '작업명', '공사명', 'title') || ''),
+              contractor: String(getSheetValue(row, '담당자', '업체', 'worker') || '미지정'),
+              status: 'completed'
+            });
+          }
+        });
+      }
+
       if (buildingData && Array.isArray(buildingData)) {
         const mergedFacilities = buildingData.map((row: any) => {
           const rowId = String(getSheetValue(row, 'id') || '').trim();
@@ -257,7 +275,7 @@ const App: React.FC = () => {
             y: parseFloat(getSheetValue(row, 'coordY', 'y') || '0'),
             status: FacilityStatus.NORMAL,
             history: historyMap[facilityName] || [],
-            construction: [],
+            construction: constructionMap[facilityName] || [],
             documents: [],
             buildingInfo: {
               structure: getSheetValue(row, 'structure', '구조'),

@@ -10,7 +10,7 @@ function doGet(e) {
   
   if (!sheet) {
     // 필수 시트가 없는 경우 에러 대신 빈 배열 반환 (초기화 편의성)
-    const autoCreateSheets = ["log", "관로관리", "공지사항", "설비관리", "차량현황"];
+    const autoCreateSheets = ["log", "관로관리", "공지사항", "설비관리", "차량현황", "공사관리"];
     if (autoCreateSheets.indexOf(sheetName) !== -1) {
       return ContentService.createTextOutput(JSON.stringify([]))
         .setMimeType(ContentService.MimeType.JSON);
