@@ -50,6 +50,29 @@ function doGet(e) {
     .setMimeType(ContentService.MimeType.JSON);
 }
 
+function getOrCreateFolder(parent, name) {
+  const folders = parent.getFoldersByName(name);
+  if (folders.hasNext()) return folders.next();
+  return parent.createFolder(name);
+}
+
+function uploadFile(fileData, fileName, fileType, orgName) {
+  if (!fileData || !fileName) return "";
+  try {
+    const targetFolderId = "1zI3PIOGZ-PT04wOiNOi5A1Fupzh5_ZyP";
+    const rootFolder = DriveApp.getFolderById(targetFolderId);
+    const orgFolder = getOrCreateFolder(rootFolder, orgName || "기타");
+    const contentType = fileType || "application/octet-stream";
+    const decodedFile = Utilities.base64Decode(fileData.split(",")[1] || fileData);
+    const blob = Utilities.newBlob(decodedFile, contentType, fileName);
+    const file = orgFolder.createFile(blob);
+    return file.getUrl();
+  } catch (err) {
+    console.error("File upload error: " + err.toString());
+    return "";
+  }
+}
+
 function doPost(e) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const params = JSON.parse(e.postData.contents);
@@ -143,6 +166,18 @@ function doPost(e) {
     if (targetSheet.getLastRow() === 0) {
       targetSheet.appendRow(["id", "title", "date", "isUrgent", "category", "content", "photoUrl", "fileUrl"]);
     }
+    
+    // 공지사항 파일 업로드 처리
+    let photoUrl = val.photoUrl || "";
+    let fileUrl = val.fileUrl || "";
+    
+    if (val.photoData && val.photoName) {
+      photoUrl = uploadFile(val.photoData, val.photoName, val.photoType, "공지사항_사진");
+    }
+    if (val.fileData && val.fileName) {
+      fileUrl = uploadFile(val.fileData, val.fileName, val.fileType, "공지사항_첨부");
+    }
+
     targetSheet.appendRow([
       newId, 
       val.title || params.title, 
@@ -150,8 +185,8 @@ function doPost(e) {
       val.isUrgent ? "true" : "false", 
       val.category || "시설", 
       val.content || "", 
-      val.photoUrl || "", 
-      val.fileUrl || ""
+      photoUrl, 
+      fileUrl
     ]);
     return ContentService.createTextOutput(JSON.stringify({result: "success"}))
       .setMimeType(ContentService.MimeType.JSON);
@@ -229,12 +264,32 @@ function doPost(e) {
       "비고": info.remarks, "remarks": info.remarks
     };
   } else if (action === "LOG") {
-    let logSheet = ss.getSheetByName("log");
-    if (!logSheet) {
-      logSheet = ss.insertSheet("log");
-      logSheet.appendRow(["timestamp", "org", "category", "title", "value"]);
+    if (params.category === "CONSTRUCTION") {
+      let constSheet = ss.getSheetByName("공사관리");
+      if (!constSheet) {
+        constSheet = ss.insertSheet("공사관리");
+        constSheet.appendRow(["대상 시설", "날짜 / 기간", "작업/공사명", "담당자 / 업체", "첨부파일", "timestamp"]);
+      }
+      
+      const val = params.value || {};
+      const fileUrl = uploadFile(val.fileData, val.fileName, val.fileType, params.org);
+
+      constSheet.appendRow([
+        params.org,
+        val.date || "",
+        params.title || "",
+        val.contractor || "",
+        fileUrl,
+        new Date()
+      ]);
+    } else {
+      let logSheet = ss.getSheetByName("log");
+      if (!logSheet) {
+        logSheet = ss.insertSheet("log");
+        logSheet.appendRow(["timestamp", "org", "category", "title", "value"]);
+      }
+      logSheet.appendRow([new Date(), params.org, params.category, params.title, JSON.stringify(params.value)]);
     }
-    logSheet.appendRow([new Date(), params.org, params.category, params.title, JSON.stringify(params.value)]);
     return ContentService.createTextOutput(JSON.stringify({result: "success"}))
       .setMimeType(ContentService.MimeType.JSON);
   }

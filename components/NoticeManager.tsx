@@ -51,8 +51,24 @@ const NoticeManager: React.FC<NoticeManagerProps> = ({ notices, onRefresh, onVie
 
     const reader = new FileReader();
     reader.onloadend = () => {
-      const field = type === 'photo' ? 'photoUrl' : 'fileUrl';
-      setFormData(prev => ({ ...prev, [field]: reader.result as string }));
+      const base64 = reader.result as string;
+      if (type === 'photo') {
+        setFormData(prev => ({ 
+          ...prev, 
+          photoUrl: base64,
+          photoName: file.name,
+          photoType: file.type,
+          photoData: base64
+        }));
+      } else {
+        setFormData(prev => ({ 
+          ...prev, 
+          fileUrl: base64,
+          fileName: file.name,
+          fileType: file.type,
+          fileData: base64
+        }));
+      }
     };
     reader.readAsDataURL(file);
   };
@@ -77,7 +93,20 @@ const NoticeManager: React.FC<NoticeManagerProps> = ({ notices, onRefresh, onVie
       });
       alert('공지사항이 성공적으로 등록되었습니다.');
       setIsAdding(false);
-      setFormData({ title: '', category: '시설', isUrgent: false, content: '', photoUrl: '', fileUrl: '' });
+      setFormData({ 
+        title: '', 
+        category: '시설', 
+        isUrgent: false, 
+        content: '', 
+        photoUrl: '', 
+        fileUrl: '',
+        photoName: undefined,
+        photoType: undefined,
+        photoData: undefined,
+        fileName: undefined,
+        fileType: undefined,
+        fileData: undefined
+      });
       await onRefresh();
     } catch (error) {
       alert('등록 중 오류가 발생했습니다.');

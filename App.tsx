@@ -247,15 +247,28 @@ const App: React.FC = () => {
 
       let constructionMap: Record<string, any[]> = {};
       if (constructionData && Array.isArray(constructionData)) {
+        const seenConst = new Set();
         constructionData.forEach((row: any) => {
-          const org = String(getSheetValue(row, '대상시설', '시설명', 'org') || '').trim();
+          // 시트 이미지의 정확한 헤더 명칭 반영 및 다양한 변종 대응
+          const org = String(getSheetValue(row, '대상 시설', '대상시설', '시설명', '시설', 'org') || '').trim();
+          const date = formatDateToKST(getSheetValue(row, '날짜 / 기간', '날짜/기간', '날짜', '기간', 'timestamp'));
+          const title = String(getSheetValue(row, '작업/공사명', '작업 / 공사명', '작업명', '공사명', 'title') || '');
+          const contractor = String(getSheetValue(row, '담당자 / 업체', '담당자/업체', '담당자', '업체', 'worker') || '미지정');
+          const fileUrl = String(getSheetValue(row, '첨부파일', 'fileUrl', 'link') || '');
+          
+          // 중복 방지를 위한 키 생성
+          const constKey = `${org}-${date}-${title}-${contractor}`;
+          if (seenConst.has(constKey)) return;
+          seenConst.add(constKey);
+
           if (org) {
             if (!constructionMap[org]) constructionMap[org] = [];
             constructionMap[org].push({
               id: `const-${Date.now()}-${Math.random()}`,
-              date: formatDateToKST(getSheetValue(row, '날짜', '기간', 'timestamp')),
-              title: String(getSheetValue(row, '작업명', '공사명', 'title') || ''),
-              contractor: String(getSheetValue(row, '담당자', '업체', 'worker') || '미지정'),
+              date,
+              title,
+              contractor,
+              fileUrl,
               status: 'completed'
             });
           }
@@ -263,20 +276,28 @@ const App: React.FC = () => {
       }
 
       if (buildingData && Array.isArray(buildingData)) {
-        const mergedFacilities = buildingData.map((row: any) => {
-          const rowId = String(getSheetValue(row, 'id') || '').trim();
-          const facilityName = String(getSheetValue(row, 'name', '이름', '시설명') || '').trim();
-          
-          return {
-            id: rowId,
-            name: facilityName,
-            description: String(getSheetValue(row, 'usage', '주요용도') || ''),
-            x: parseFloat(getSheetValue(row, 'coordX', 'x') || '0'),
-            y: parseFloat(getSheetValue(row, 'coordY', 'y') || '0'),
-            status: FacilityStatus.NORMAL,
-            history: historyMap[facilityName] || [],
-            construction: constructionMap[facilityName] || [],
-            documents: [],
+        const seenIds = new Set();
+        const mergedFacilities = buildingData
+          .filter((row: any) => {
+            const id = String(getSheetValue(row, 'id') || '').trim();
+            if (!id || seenIds.has(id)) return false;
+            seenIds.add(id);
+            return true;
+          })
+          .map((row: any) => {
+            const rowId = String(getSheetValue(row, 'id') || '').trim();
+            const facilityName = String(getSheetValue(row, 'name', '이름', '시설명') || '').trim();
+            
+            return {
+              id: rowId,
+              name: facilityName,
+              description: String(getSheetValue(row, 'usage', '주요용도') || ''),
+              x: parseFloat(getSheetValue(row, 'coordX', 'x') || '0'),
+              y: parseFloat(getSheetValue(row, 'coordY', 'y') || '0'),
+              status: FacilityStatus.NORMAL,
+              history: historyMap[facilityName] || [],
+              construction: constructionMap[facilityName] || [],
+              documents: [],
             buildingInfo: {
               structure: getSheetValue(row, 'structure', '구조'),
               floors: getSheetValue(row, 'floors', '규모', '층수'),
@@ -308,7 +329,8 @@ const App: React.FC = () => {
             }
           } as Hotspot;
         });
-        setFacilities(mergedFacilities.filter(f => f.name));
+        const uniqueByName = Array.from(new Map(mergedFacilities.filter(f => f.name).map(f => [f.name, f])).values());
+        setFacilities(uniqueByName);
       }
     } catch (error) {
       console.error("❌ 데이터 새로고침 실패:", error);
@@ -411,6 +433,32 @@ const App: React.FC = () => {
     setSelectedFacility(updatedFacility);
   };
 
+  const handleAddConstruction = async (data: { org: string; date: string; title: string; contractor: string; file?: { name: string; type: string; data: string } }) => {
+    try {
+      const result = await ApiService.submitData({
+        org: data.org,
+        category: 'CONSTRUCTION',
+        title: data.title,
+        value: {
+          date: data.date,
+          contractor: data.contractor,
+          fileName: data.file?.name,
+          fileType: data.file?.type,
+          fileData: data.file?.data
+        }
+      });
+      if (result.success) {
+        alert('공사 실적이 성공적으로 저장되었습니다.');
+        refreshDataFromSheets();
+      } else {
+        alert('저장 중 오류가 발생했습니다.');
+      }
+    } catch (error) {
+      console.error("Add construction error:", error);
+      alert('서버 통신 중 오류가 발생했습니다.');
+    }
+  };
+
   const renderContent = () => {
     switch (activeTab) {
       case 'home': return <Dashboard facilities={facilities} contacts={contacts} notices={notices} onNoticeClick={(n) => setSelectedNotice(n)} onAction={(tab) => setActiveTab(tab)} />;
@@ -454,7 +502,7 @@ const App: React.FC = () => {
       case 'vehicle': return <VehicleManager vehicles={rawVehicles} onRefresh={refreshDataFromSheets} />;
       case 'landscaping': return <LandscapingView facilities={facilities} />;
       case 'water': return <WaterQualityView facilities={facilities} equipment={rawEquipment} />;
-      case 'construction': return <HistoryTable title="공사 및 대수선 관리 실적" type="construction" facilities={facilities} />;
+      case 'construction': return <HistoryTable title="공사 및 대수선 관리 실적" type="construction" facilities={facilities} onAdd={handleAddConstruction} />;
       case 'admin': return (
         <div className="space-y-8 animate-in fade-in duration-700">
           <div className="p-8 bg-white rounded-3xl border border-slate-100 shadow-sm">
