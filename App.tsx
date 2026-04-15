@@ -153,7 +153,7 @@ const App: React.FC = () => {
               lastInspection: formatDateToKST(getSheetValue(row, '최종검사')),
               nextInspection: formatDateToKST(getSheetValue(row, '차기검사')),
               orgName: String(getSheetValue(row, '소속기관', '기관명') || '').trim(),
-              ownerInfo: String(getSheetValue(row, '차주 및 비고', '비고및차주', '비고') || '').trim()
+              ownerInfo: typeValue // E열(index 4)의 값을 '차주 및 비고'란에 표시
             } as Vehicle;
           });
         setRawVehicles(vehicleList);
