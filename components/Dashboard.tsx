@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { 
   Activity, 
   AlertTriangle, 
@@ -27,14 +27,6 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { Hotspot, Notice } from '../types';
 import EmergencyAlertModal from './EmergencyAlertModal';
 
-const data = [
-  { name: '학교', count: 12 },
-  { name: '복지관', count: 18 },
-  { name: '체육관', count: 8 },
-  { name: '요양원', count: 15 },
-  { name: '온실', count: 5 },
-];
-
 const DRIVE_URL = "https://drive.google.com/drive/folders/1zI3PIOGZ-PT04wOiNOi5A1Fupzh5_ZyP?usp=drive_link";
 
 interface DashboardProps {
@@ -51,6 +43,21 @@ const Dashboard: React.FC<DashboardProps> = ({ facilities, contacts, notices, on
   
   const FILE_ID = "1Jl-RMMoh6u_McdcUl58PiaEESVf42vBI";
   const MAP_IMAGE_URL = `https://lh3.googleusercontent.com/d/${FILE_ID}`;
+
+  // 시설 데이터를 기반으로 차트 데이터 생성
+  const chartData = useMemo(() => {
+    const counts: Record<string, number> = {};
+    facilities.forEach(f => {
+      // 이름에서 주요 키워드 추출 (예: '정심원', '요양원' 등)
+      const category = f.name.includes('학교') ? '학교' : 
+                       f.name.includes('복지관') ? '복지관' :
+                       f.name.includes('요양원') ? '요양원' :
+                       f.name.includes('작업장') ? '작업장' :
+                       f.name.includes('정심원') ? '정심원' : '기타';
+      counts[category] = (counts[category] || 0) + 1;
+    });
+    return Object.entries(counts).map(([name, count]) => ({ name, count }));
+  }, [facilities]);
 
   return (
     <div className="space-y-8 animate-in fade-in duration-700">
@@ -132,7 +139,7 @@ const Dashboard: React.FC<DashboardProps> = ({ facilities, contacts, notices, on
           </div>
           <div className="h-[350px] w-full">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={data}>
+              <BarChart data={chartData}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                 <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fontSize: 12, fontWeight: 600, fill: '#64748b'}} />
                 <YAxis axisLine={false} tickLine={false} tick={{fontSize: 12, fontWeight: 600, fill: '#64748b'}} />
@@ -141,7 +148,7 @@ const Dashboard: React.FC<DashboardProps> = ({ facilities, contacts, notices, on
                   contentStyle={{borderRadius: '16px', border: 'none', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)', fontWeight: 700}}
                 />
                 <Bar dataKey="count" barSize={32} radius={[8, 8, 0, 0]}>
-                  {data.map((entry, index) => (
+                  {chartData.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={['#3b82f6', '#10b981', '#f59e0b', '#6366f1', '#8b5cf6'][index % 5]} />
                   ))}
                 </Bar>

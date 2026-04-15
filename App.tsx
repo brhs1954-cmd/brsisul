@@ -278,14 +278,14 @@ const App: React.FC = () => {
       if (buildingData && Array.isArray(buildingData)) {
         const seenIds = new Set();
         const mergedFacilities = buildingData
-          .filter((row: any) => {
-            const id = String(getSheetValue(row, 'id') || '').trim();
-            if (!id || seenIds.has(id)) return false;
-            seenIds.add(id);
-            return true;
-          })
-          .map((row: any) => {
-            const rowId = String(getSheetValue(row, 'id') || '').trim();
+          .map((row: any, index: number) => {
+            let rowId = String(getSheetValue(row, 'id') || '').trim();
+            // ID가 없는 경우 인덱스를 기반으로 임시 ID 생성하여 누락 방지
+            if (!rowId) rowId = `temp-bld-${index}`;
+            
+            if (seenIds.has(rowId)) return null;
+            seenIds.add(rowId);
+
             const facilityName = String(getSheetValue(row, 'name', '이름', '시설명') || '').trim();
             
             return {
@@ -298,39 +298,40 @@ const App: React.FC = () => {
               history: historyMap[facilityName] || [],
               construction: constructionMap[facilityName] || [],
               documents: [],
-            buildingInfo: {
-              structure: getSheetValue(row, 'structure', '구조'),
-              floors: getSheetValue(row, 'floors', '규모', '층수'),
-              area: getSheetValue(row, 'area', '연면적'),
-              completionDate: formatDateToKST(getSheetValue(row, 'completionDate', '준공일')),
-              safetyGrade: (getSheetValue(row, 'safetyGrade', '안전등급') || 'A') as any,
-              lastSafetyCheck: formatDateToKST(getSheetValue(row, 'lastSafetyCheck', '최종안전진단일')),
-              address: String(getSheetValue(row, 'address', '건축물소재지') || ''),
-              valuation: String(getSheetValue(row, 'valuation', '평가액') || ''),
-              bookValue: String(getSheetValue(row, 'bookValue', '장부가액') || ''),
-              usage: String(getSheetValue(row, 'usage', '주요용도') || ''),
-              floorPlanUrl: String(getSheetValue(row, 'floorPlanUrl', '평면도링크') || ''),
-              registrationTranscriptUrl: String(getSheetValue(row, 'registrationTranscriptUrl', '등기부등본링크') || ''),
-              buildingLedgerUrl: String(getSheetValue(row, 'buildingLedgerUrl', '건축물대장링크') || ''),
-              roofType: String(getSheetValue(row, 'roofType', '지붕구조') || ''),
-              heatingType: String(getSheetValue(row, 'heatingType', '냉난방방식') || ''),
-              elevatorCount: String(getSheetValue(row, 'elevatorCount', '승강기대수') || ''),
-              exteriorFinish: String(getSheetValue(row, 'exteriorFinish', '외벽마감') || ''),
-              parkingCapacity: String(getSheetValue(row, 'parkingCapacity', '주차대수') || ''),
-              photoUrl: String(getSheetValue(row, 'photoUrl', '사진', '사진URL') || '')
-            },
-            landscaping: ['교정 수목 전정', '화단 잡초 제거'],
-            waterQuality: {
-              ph: 7.2,
-              chlorine: 0.5,
-              turbidity: 0.1,
-              temperature: 18,
-              lastChecked: formatDateToKST(new Date())
-            }
-          } as Hotspot;
-        });
-        const uniqueByName = Array.from(new Map(mergedFacilities.filter(f => f.name).map(f => [f.name, f])).values());
-        setFacilities(uniqueByName);
+              buildingInfo: {
+                structure: getSheetValue(row, 'structure', '구조'),
+                floors: getSheetValue(row, 'floors', '규모', '층수'),
+                area: getSheetValue(row, 'area', '연면적'),
+                completionDate: formatDateToKST(getSheetValue(row, 'completionDate', '준공일')),
+                safetyGrade: (getSheetValue(row, 'safetyGrade', '안전등급') || 'A') as any,
+                lastSafetyCheck: formatDateToKST(getSheetValue(row, 'lastSafetyCheck', '최종안전진단일')),
+                address: String(getSheetValue(row, 'address', '건축물소재지') || ''),
+                valuation: String(getSheetValue(row, 'valuation', '평가액') || ''),
+                bookValue: String(getSheetValue(row, 'bookValue', '장부가액') || ''),
+                usage: String(getSheetValue(row, 'usage', '주요용도') || ''),
+                floorPlanUrl: String(getSheetValue(row, 'floorPlanUrl', '평면도링크') || ''),
+                registrationTranscriptUrl: String(getSheetValue(row, 'registrationTranscriptUrl', '등기부등본링크') || ''),
+                buildingLedgerUrl: String(getSheetValue(row, 'buildingLedgerUrl', '건축물대장링크') || ''),
+                roofType: String(getSheetValue(row, 'roofType', '지붕구조') || ''),
+                heatingType: String(getSheetValue(row, 'heatingType', '냉난방방식') || ''),
+                elevatorCount: String(getSheetValue(row, 'elevatorCount', '승강기대수') || ''),
+                exteriorFinish: String(getSheetValue(row, 'exteriorFinish', '외벽마감') || ''),
+                parkingCapacity: String(getSheetValue(row, 'parkingCapacity', '주차대수') || ''),
+                photoUrl: String(getSheetValue(row, 'photoUrl', '사진', '사진URL') || '')
+              },
+              landscaping: ['교정 수목 전정', '화단 잡초 제거'],
+              waterQuality: {
+                ph: 7.2,
+                chlorine: 0.5,
+                turbidity: 0.1,
+                temperature: 18,
+                lastChecked: formatDateToKST(new Date())
+              }
+            } as Hotspot;
+          })
+          .filter((f): f is Hotspot => f !== null && !!f.name);
+        
+        setFacilities(mergedFacilities);
       }
     } catch (error) {
       console.error("❌ 데이터 새로고침 실패:", error);
@@ -513,7 +514,7 @@ const App: React.FC = () => {
           </div>
         </div>
       );
-      default: return <Dashboard facilities={facilities} contacts={contacts} notices={notices} onNoticeClick={(n) => setSelectedNotice(n)} onAction={(tab) => setActiveTab(tab)} />;
+      case 'home': return <Dashboard facilities={facilities} contacts={contacts} notices={notices} onNoticeClick={(n) => setSelectedNotice(n)} onAction={(tab) => setActiveTab(tab)} />;
     }
   };
 
