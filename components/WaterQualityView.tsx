@@ -25,6 +25,7 @@ import { getCurrentKSTDateString } from '../lib/dateUtils';
 interface WaterQualityViewProps {
   facilities: Hotspot[];
   equipment: Equipment[];
+  waterLogs?: any[];
   onAddLog: (category: string, data: any) => Promise<void>;
   onRefresh: () => Promise<void>;
 }
@@ -37,7 +38,7 @@ const ORDERED_ORG_NAMES = [
   '충남서부 장애인종합복지관'
 ];
 
-const WaterQualityView: React.FC<WaterQualityViewProps> = ({ facilities, equipment, onAddLog, onRefresh }) => {
+const WaterQualityView: React.FC<WaterQualityViewProps> = ({ facilities, equipment, waterLogs = [], onAddLog, onRefresh }) => {
   const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isManualAddOpen, setIsManualAddOpen] = useState(false);
@@ -205,13 +206,20 @@ const WaterQualityView: React.FC<WaterQualityViewProps> = ({ facilities, equipme
             // 해당 저수조의 최신 수질 데이터 찾기
             const normalizedTankName = tank.name.toLowerCase().replace(/\s+/g, '');
             
-            // 1. 해당 시설에서 먼저 찾기
-            const facility = facilities.find(f => f.name === tank.orgName);
-            let latestLog = facility?.waterQualityLogs?.find(log => 
+            // 1. 전달받은 전체 로그에서 먼저 찾기 (가장 정확하고 빠름)
+            let latestLog = waterLogs.find(log => 
               log.tankName.toLowerCase().replace(/\s+/g, '') === normalizedTankName
-            ); 
+            );
 
-            // 2. 못 찾았다면 전체 시설에서 해당 저수조 명칭으로 검색 (폴백)
+            // 2. 못 찾았다면 시설 데이터 내부에 병합된 로그에서 찾기 (폴백)
+            if (!latestLog) {
+              const facility = facilities.find(f => f.name === tank.orgName);
+              latestLog = facility?.waterQualityLogs?.find(log => 
+                log.tankName.toLowerCase().replace(/\s+/g, '') === normalizedTankName
+              ); 
+            }
+
+            // 3. 여전히 못 찾았다면 전체 시설을 순회하며 찾기 (최종 폴백)
             if (!latestLog) {
               for (const f of facilities) {
                 const found = f.waterQualityLogs?.find(log => 

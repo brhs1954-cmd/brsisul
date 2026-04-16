@@ -69,6 +69,7 @@ const App: React.FC = () => {
   const [notices, setNotices] = useState<Notice[]>([]); 
   const [paths, setPaths] = useState<FacilityPath[]>([]);
   const [landscapingPlans, setLandscapingPlans] = useState<any[]>([]);
+  const [waterLogs, setWaterLogs] = useState<any[]>([]);
 
   // 디바운스 처리를 위한 타이머 레프
   const updateTimerRef = React.useRef<NodeJS.Timeout | null>(null);
@@ -304,10 +305,10 @@ const App: React.FC = () => {
           const normalizedTankName = tankName.toLowerCase().replace(/\s+/g, '');
           
           const date = formatDateToKST(getSheetValue(row, '날짜', 'timestamp')).trim();
-          const ph = Number(getSheetValue(row, 'pH') || 0);
-          const chlorine = Number(getSheetValue(row, '잔류염소') || 0);
-          const turbidity = Number(getSheetValue(row, '탁도') || 0);
-          const temperature = Number(getSheetValue(row, '수온') || 0);
+          const ph = Number(getSheetValue(row, 'pH', 'PH', 'ph', '수소이온농도', '수소이온') || 0);
+          const chlorine = Number(getSheetValue(row, '잔류염소', 'chlorine', 'Chlorine', '염소') || 0);
+          const turbidity = Number(getSheetValue(row, '탁도', 'turbidity', 'Turbidity') || 0);
+          const temperature = Number(getSheetValue(row, '수온', 'temperature', 'Temperature', '온도') || 0);
           const worker = String(getSheetValue(row, '담당자', 'worker') || '미지정').trim();
           const fileUrl = String(getSheetValue(row, '첨부파일', 'fileUrl', 'link') || '').trim();
 
@@ -342,6 +343,10 @@ const App: React.FC = () => {
         Object.keys(waterQualityMap).forEach(key => {
           waterQualityMap[key].sort((a, b) => b.date.localeCompare(a.date));
         });
+
+        // 전체 워터 로그 상태 업데이트 (WaterQualityView에서 직접 사용하기 위함)
+        const allLogs = Object.values(waterQualityMap).flat().sort((a, b) => b.date.localeCompare(a.date));
+        setWaterLogs(allLogs);
       }
 
       // 4. 건축물 데이터 처리 및 이력 병합
@@ -633,7 +638,7 @@ const App: React.FC = () => {
       case 'equipment': return <EquipmentManager equipment={rawEquipment} onRefresh={refreshDataFromSheets} />;
       case 'vehicle': return <VehicleManager vehicles={rawVehicles} onRefresh={refreshDataFromSheets} />;
       case 'landscaping': return <LandscapingView facilities={facilities} plans={landscapingPlans} onRefresh={refreshDataFromSheets} onAdd={handleAddLandscaping} />;
-      case 'water': return <WaterQualityView facilities={facilities} equipment={rawEquipment} onAddLog={handleAddLog} onRefresh={refreshDataFromSheets} />;
+      case 'water': return <WaterQualityView facilities={facilities} equipment={rawEquipment} waterLogs={waterLogs} onAddLog={handleAddLog} onRefresh={refreshDataFromSheets} />;
       case 'construction': return <HistoryTable title="공사 및 대수선 관리 실적" type="construction" facilities={facilities} onAdd={handleAddConstruction} />;
       case 'admin': return (
         <div className="space-y-8 animate-in fade-in duration-700">
