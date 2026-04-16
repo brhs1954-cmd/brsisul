@@ -18,7 +18,8 @@ import {
   AlertCircle,
   Edit3,
   Maximize2,
-  X
+  X,
+  PlusCircle
 } from 'lucide-react';
 import EquipmentEditModal from './EquipmentEditModal';
 
@@ -86,6 +87,13 @@ const EquipmentManager: React.FC<EquipmentManagerProps> = ({ equipment, onRefres
           </div>
         </div>
         <div className="flex gap-3">
+          <button 
+            onClick={() => setEditingEq({ id: '', name: '', location: '', orgName: '', installDate: '', specs: '', cycle: '', manualUrl: '', photoUrl: '', asCompany: '', asTel: '', remarks: '', x: 50, y: 50 } as any)}
+            className="px-5 py-3 bg-amber-500 text-white rounded-2xl font-black text-xs hover:bg-amber-600 transition-all flex items-center shadow-lg shadow-amber-100"
+          >
+            <PlusCircle className="w-4 h-4 mr-2" />
+            신규 설비 등록
+          </button>
           <button onClick={handleManualSync} disabled={isSyncing} className="px-5 py-3 bg-white text-blue-600 rounded-2xl font-black text-xs border border-blue-100 hover:bg-blue-50 transition-all flex items-center shadow-sm">
             <RefreshCw className={`w-4 h-4 mr-2 ${isSyncing ? 'animate-spin' : ''}`} /> 
             시트 동기화

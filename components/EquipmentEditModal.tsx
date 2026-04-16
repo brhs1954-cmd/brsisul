@@ -94,19 +94,41 @@ const EquipmentEditModal: React.FC<EquipmentEditModalProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!formData.id || !formData.name) {
+      alert('설비 ID와 명칭은 필수 입력 사항입니다.');
+      return;
+    }
     setIsSaving(true);
     try {
-      await ApiService.updateEquipmentInfo(equipment.id, formData);
+      let result;
+      if (!equipment.id) {
+        // New equipment
+        result = await ApiService.addEquipment(formData);
+        if (result.success) {
+          alert(`[${formData.name}] 신규 설비가 성공적으로 등록되었습니다.`);
+        } else {
+          throw new Error('Save failed');
+        }
+      } else {
+        // Update existing
+        result = await ApiService.updateEquipmentInfo(equipment.id, formData);
+        if (result.success) {
+          alert(`[${formData.name}] 설비 정보가 성공적으로 업데이트되었습니다.`);
+        } else {
+          throw new Error('Update failed');
+        }
+      }
       await onSave();
-      alert(`[${formData.name}] 설비 정보가 성공적으로 업데이트되었습니다.`);
     } catch (error) {
-      alert('저장 중 오류가 발생했습니다.');
+      console.error("Save error:", error);
+      alert('저장 중 오류가 발생했습니다. 구글 시트 연결 상태나 권한을 확인해주세요.');
     } finally {
       setIsSaving(false);
     }
   };
 
   const previewUrl = getImageUrl(formData.photoUrl);
+  const isNew = !equipment.id;
 
   return (
     <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
@@ -121,7 +143,7 @@ const EquipmentEditModal: React.FC<EquipmentEditModalProps> = ({
               <Zap className="w-6 h-6 text-white" />
             </div>
             <div>
-              <h2 className="text-xl font-black tracking-tight">설비 자산 정보 수정</h2>
+              <h2 className="text-xl font-black tracking-tight">{isNew ? '신규 설비 자산 등록' : '설비 자산 정보 수정'}</h2>
               <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Master Cloud Sync Enabled</p>
             </div>
           </div>
@@ -170,7 +192,19 @@ const EquipmentEditModal: React.FC<EquipmentEditModalProps> = ({
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-1.5">
-                <label className="text-[10px] font-black text-slate-400 uppercase ml-1">설비명</label>
+                <label className="text-[10px] font-black text-slate-400 uppercase ml-1">설비 고유 ID (필수)</label>
+                <input 
+                  name="id" 
+                  value={formData.id} 
+                  onChange={handleChange} 
+                  disabled={!isNew}
+                  placeholder="예: EQ-001"
+                  className={`w-full border rounded-2xl px-5 py-3.5 text-sm font-bold outline-none transition-all shadow-sm ${isNew ? 'bg-white border-slate-200 focus:ring-2 focus:ring-amber-500 text-slate-700' : 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed'}`} 
+                  required 
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-black text-slate-400 uppercase ml-1">설비명 (필수)</label>
                 <input name="name" value={formData.name} onChange={handleChange} className="w-full bg-white border border-slate-200 rounded-2xl px-5 py-3.5 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-amber-500 shadow-sm" required />
               </div>
               <div className="space-y-1.5">

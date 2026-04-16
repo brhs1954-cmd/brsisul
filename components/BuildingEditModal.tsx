@@ -117,11 +117,16 @@ const BuildingEditModal: React.FC<BuildingEditModalProps> = ({
     e.preventDefault();
     setIsSaving(true);
     try {
-      await ApiService.updateBuildingInfo(facility.id, formData);
-      await onSave();
-      alert(`시트 정보가 성공적으로 저장되었습니다.`);
+      const result = await ApiService.updateBuildingInfo(facility.id, formData);
+      if (result.success) {
+        await onSave();
+        alert(`시트 정보가 성공적으로 저장되었습니다.`);
+      } else {
+        throw new Error('Update failed');
+      }
     } catch (error) {
-      alert('저장 중 오류가 발생했습니다.');
+      console.error("Save error:", error);
+      alert('저장 중 오류가 발생했습니다. 구글 시트 연결 상태나 권한을 확인해주세요.');
     } finally {
       setIsSaving(false);
     }

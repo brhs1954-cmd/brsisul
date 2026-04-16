@@ -22,7 +22,7 @@ export const ApiService = {
     try {
       const response = await fetch(GOOGLE_SHEET_API_URL, {
         method: 'POST',
-        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        headers: { 'Content-Type': 'text/plain' },
         body: JSON.stringify({ ...payload, action: 'LOG' }),
       });
       const result = await response.json();
@@ -37,8 +37,8 @@ export const ApiService = {
     try {
       const response = await fetch(GOOGLE_SHEET_API_URL, {
         method: 'POST',
-        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify({ action: 'SAVE_PATH', path }),
+        headers: { 'Content-Type': 'text/plain' },
+        body: JSON.stringify({ action: 'SAVE_PATH', ...path }),
       });
       const result = await response.json();
       return { success: result.result === 'success' };
@@ -52,7 +52,7 @@ export const ApiService = {
     try {
       const response = await fetch(GOOGLE_SHEET_API_URL, {
         method: 'POST',
-        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        headers: { 'Content-Type': 'text/plain' },
         body: JSON.stringify({ action: 'DELETE_PATH', id }),
       });
       const result = await response.json();
@@ -67,7 +67,7 @@ export const ApiService = {
     try {
       const response = await fetch(GOOGLE_SHEET_API_URL, {
         method: 'POST',
-        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        headers: { 'Content-Type': 'text/plain' },
         body: JSON.stringify({ action: 'UPDATE_PATH', id, points }),
       });
       const result = await response.json();
@@ -82,7 +82,7 @@ export const ApiService = {
     try {
       const response = await fetch(GOOGLE_SHEET_API_URL, {
         method: 'POST',
-        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        headers: { 'Content-Type': 'text/plain' },
         body: JSON.stringify({ action: 'DELETE_NOTICE', id: id }),
       });
       const result = await response.json();
@@ -97,11 +97,11 @@ export const ApiService = {
     try {
       const response = await fetch(GOOGLE_SHEET_API_URL, {
         method: 'POST',
-        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        headers: { 'Content-Type': 'text/plain' },
         body: JSON.stringify({ 
           action: 'UPDATE_BUILDING',
           id: id,
-          info: info
+          ...info
         }),
       });
       const result = await response.json();
@@ -116,11 +116,11 @@ export const ApiService = {
     try {
       const response = await fetch(GOOGLE_SHEET_API_URL, {
         method: 'POST',
-        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        headers: { 'Content-Type': 'text/plain' },
         body: JSON.stringify({ 
           action: 'UPDATE_EQUIPMENT',
           id: id,
-          info: info
+          ...info
         }),
       });
       const result = await response.json();
@@ -128,6 +128,28 @@ export const ApiService = {
     } catch (error) {
       console.error('Equipment update error:', error);
       return { success: false };
+    }
+  },
+
+  async addEquipment(info: any) {
+    try {
+      const response = await fetch(GOOGLE_SHEET_API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain' },
+        body: JSON.stringify({ 
+          action: 'ADD_EQUIPMENT',
+          ...info
+        }),
+      });
+      const result = await response.json();
+      if (result.result === 'success') return { success: true };
+      
+      // If ADD_EQUIPMENT action is not supported, try UPDATE_EQUIPMENT as fallback
+      console.warn('ADD_EQUIPMENT failed, trying UPDATE_EQUIPMENT fallback');
+      return this.updateEquipmentInfo(info.id, info);
+    } catch (error) {
+      console.error('Equipment add error:', error);
+      return this.updateEquipmentInfo(info.id, info);
     }
   },
 
