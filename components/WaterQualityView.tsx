@@ -15,18 +15,109 @@ import {
   X,
   Zap,
   Building2,
-  Calendar
+  Calendar,
+  Plus,
+  Paperclip
 } from 'lucide-react';
 import HistoryTable from './HistoryTable';
+import { getCurrentKSTDateString } from '../lib/dateUtils';
 
 interface WaterQualityViewProps {
   facilities: Hotspot[];
   equipment: Equipment[];
   onAddLog: (category: string, data: any) => Promise<void>;
+  onRefresh: () => Promise<void>;
 }
 
-const WaterQualityView: React.FC<WaterQualityViewProps> = ({ facilities, equipment, onAddLog }) => {
+const ORDERED_ORG_NAMES = [
+  '충남정심원',
+  '정심요양원',
+  '정심작업장',
+  '보령정심학교',
+  '충남서부 장애인종합복지관'
+];
+
+const WaterQualityView: React.FC<WaterQualityViewProps> = ({ facilities, equipment, onAddLog, onRefresh }) => {
   const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isManualAddOpen, setIsManualAddOpen] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [newRecord, setNewRecord] = useState<any>({ 
+    org: '', 
+    date: getCurrentKSTDateString(), 
+    ph: '',
+    chlorine: '',
+    turbidity: '',
+    temperature: '',
+    worker: ''
+  });
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      await onRefresh();
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
+  const openAddModal = (org?: string) => {
+    setNewRecord({
+      ...newRecord,
+      org: org || '',
+      date: getCurrentKSTDateString()
+    });
+    setIsManualAddOpen(true);
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const base64 = event.target?.result as string;
+      setNewRecord({
+        ...newRecord,
+        file: {
+          name: file.name,
+          type: file.type,
+          data: base64
+        }
+      });
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newRecord.org || !newRecord.ph || !newRecord.chlorine) {
+      alert('필수 항목을 입력해주세요.');
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      await handleAddWaterLog(newRecord);
+      setIsManualAddOpen(false);
+      setNewRecord({ 
+        org: '', 
+        date: getCurrentKSTDateString(), 
+        ph: '',
+        chlorine: '',
+        turbidity: '',
+        temperature: '',
+        worker: ''
+      });
+      await onRefresh();
+      alert('수질 측정 기록이 저장되었습니다.');
+    } catch (error) {
+      alert('저장 중 오류가 발생했습니다.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   // 설비 중 '저수조'가 포함된 항목만 필터링
   const waterTanks = useMemo(() => {
@@ -52,7 +143,7 @@ const WaterQualityView: React.FC<WaterQualityViewProps> = ({ facilities, equipme
       chlorine: data.chlorine,
       turbidity: data.turbidity,
       temperature: data.temperature,
-      worker: data.contractor,
+      worker: data.worker,
       fileData: data.file?.data,
       fileName: data.file?.name,
       fileType: data.file?.type
@@ -73,6 +164,14 @@ const WaterQualityView: React.FC<WaterQualityViewProps> = ({ facilities, equipme
           </div>
         </div>
         <div className="flex items-center space-x-4">
+          <button 
+            onClick={handleRefresh}
+            disabled={isRefreshing}
+            className="p-3 bg-white border border-slate-200 text-slate-500 rounded-2xl hover:bg-slate-50 transition-all shadow-sm disabled:opacity-50"
+            title="데이터 새로고침"
+          >
+            <RefreshCcw className={`w-5 h-5 ${isRefreshing ? 'animate-spin' : ''}`} />
+          </button>
           <div className="flex items-center px-5 py-3 bg-emerald-50 text-emerald-700 rounded-2xl border border-emerald-100 font-black text-xs shadow-sm">
             <ShieldCheck className="w-4 h-4 mr-1.5" /> 전체 저수조 위생 적합
           </div>
@@ -103,9 +202,27 @@ const WaterQualityView: React.FC<WaterQualityViewProps> = ({ facilities, equipme
           waterTanks.map((tank, index) => {
             const displayImageUrl = getImageUrl(tank.photoUrl);
             
-            // 해당 시설의 최신 수질 데이터 찾기
+            // 해당 저수조의 최신 수질 데이터 찾기
+            const normalizedTankName = tank.name.toLowerCase().replace(/\s+/g, '');
+            
+            // 1. 해당 시설에서 먼저 찾기
             const facility = facilities.find(f => f.name === tank.orgName);
-            const latestLog = facility?.waterQualityLogs?.[0]; // App.tsx에서 이미 최신순 정렬됨
+            let latestLog = facility?.waterQualityLogs?.find(log => 
+              log.tankName.toLowerCase().replace(/\s+/g, '') === normalizedTankName
+            ); 
+
+            // 2. 못 찾았다면 전체 시설에서 해당 저수조 명칭으로 검색 (폴백)
+            if (!latestLog) {
+              for (const f of facilities) {
+                const found = f.waterQualityLogs?.find(log => 
+                  log.tankName.toLowerCase().replace(/\s+/g, '') === normalizedTankName
+                );
+                if (found) {
+                  latestLog = found;
+                  break;
+                }
+              }
+            }
 
             const metrics = latestLog ? {
               ph: latestLog.ph,
@@ -114,10 +231,10 @@ const WaterQualityView: React.FC<WaterQualityViewProps> = ({ facilities, equipme
               temperature: latestLog.temperature,
               date: latestLog.date
             } : {
-              ph: 7.2,
-              chlorine: 0.6,
-              turbidity: 0.08,
-              temperature: 18.5,
+              ph: 0,
+              chlorine: 0,
+              turbidity: 0,
+              temperature: 0,
               date: '데이터 없음'
             };
 
@@ -215,11 +332,18 @@ const WaterQualityView: React.FC<WaterQualityViewProps> = ({ facilities, equipme
                     </div>
 
                     <div className="pt-2 flex gap-2">
-                       <button className="flex-1 py-3 bg-slate-900 text-white rounded-2xl text-[11px] font-black transition-all hover:bg-blue-600 shadow-lg shadow-slate-200 flex items-center justify-center">
+                       <button 
+                         onClick={() => openAddModal(tank.name)}
+                         className="flex-1 py-3 bg-slate-900 text-white rounded-2xl text-[11px] font-black transition-all hover:bg-blue-600 shadow-lg shadow-slate-200 flex items-center justify-center"
+                       >
                          <ClipboardList className="w-4 h-4 mr-2" /> 정기 검사 작성
                        </button>
-                       <button className="p-3 bg-slate-100 text-slate-500 rounded-2xl hover:bg-slate-200 transition-all">
-                         <RefreshCcw className="w-4 h-4" />
+                       <button 
+                         onClick={handleRefresh}
+                         disabled={isRefreshing}
+                         className="p-3 bg-slate-100 text-slate-500 rounded-2xl hover:bg-slate-200 transition-all disabled:opacity-50"
+                       >
+                         <RefreshCcw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
                        </button>
                     </div>
                   </div>
@@ -245,7 +369,10 @@ const WaterQualityView: React.FC<WaterQualityViewProps> = ({ facilities, equipme
         <p className="text-xs text-slate-500 font-bold leading-relaxed mb-8 max-w-sm uppercase tracking-widest">
           Manual Health Inspection Input
         </p>
-        <button className="px-10 py-4 bg-slate-900 text-white rounded-2xl font-black text-xs shadow-2xl hover:bg-blue-600 transition-all flex items-center">
+        <button 
+          onClick={() => openAddModal()}
+          className="px-10 py-4 bg-slate-900 text-white rounded-2xl font-black text-xs shadow-2xl hover:bg-blue-600 transition-all flex items-center"
+        >
           수질 데이터 수기 등록하기 <Maximize2 className="w-4 h-4 ml-2" />
         </button>
       </div>
@@ -257,8 +384,140 @@ const WaterQualityView: React.FC<WaterQualityViewProps> = ({ facilities, equipme
           type="water_quality" 
           facilities={facilities} 
           onAdd={handleAddWaterLog}
+          targetOptions={waterTanks.map(t => t.name)}
         />
       </section>
+
+      {/* Add Modal */}
+      {isManualAddOpen && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+              <h3 className="text-lg font-black text-slate-900">수질 측정 기록 추가</h3>
+              <button onClick={() => setIsManualAddOpen(false)} className="p-2 hover:bg-slate-200 rounded-full transition-colors">
+                <X className="w-5 h-5 text-slate-500" />
+              </button>
+            </div>
+            <form onSubmit={handleSubmit} className="p-6 space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-xs font-black text-slate-500 ml-1">저수조 명</label>
+                <select 
+                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:ring-2 focus:ring-blue-500 transition-all"
+                  value={newRecord.org}
+                  onChange={(e) => setNewRecord({...newRecord, org: e.target.value})}
+                  required
+                >
+                  <option value="">저수조 선택...</option>
+                  {waterTanks.map(tank => (
+                    <option key={tank.id} value={tank.name}>{tank.name} ({tank.orgName})</option>
+                  ))}
+                </select>
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-black text-slate-500 ml-1">날짜</label>
+                <input 
+                  type="date"
+                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:ring-2 focus:ring-blue-500 transition-all"
+                  value={newRecord.date}
+                  onChange={(e) => setNewRecord({...newRecord, date: e.target.value})}
+                  required
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-black text-slate-500 ml-1">pH (수소이온)</label>
+                  <input 
+                    type="number" step="0.1" placeholder="7.0"
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:ring-2 focus:ring-blue-500 transition-all"
+                    value={newRecord.ph}
+                    onChange={(e) => setNewRecord({...newRecord, ph: e.target.value})}
+                    required
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-black text-slate-500 ml-1">잔류염소 (mg/L)</label>
+                  <input 
+                    type="number" step="0.01" placeholder="0.5"
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:ring-2 focus:ring-blue-500 transition-all"
+                    value={newRecord.chlorine}
+                    onChange={(e) => setNewRecord({...newRecord, chlorine: e.target.value})}
+                    required
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-black text-slate-500 ml-1">탁도 (NTU)</label>
+                  <input 
+                    type="number" step="0.001" placeholder="0.05"
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:ring-2 focus:ring-blue-500 transition-all"
+                    value={newRecord.turbidity}
+                    onChange={(e) => setNewRecord({...newRecord, turbidity: e.target.value})}
+                    required
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-black text-slate-500 ml-1">수온 (°C)</label>
+                  <input 
+                    type="number" step="0.1" placeholder="15.0"
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:ring-2 focus:ring-blue-500 transition-all"
+                    value={newRecord.temperature}
+                    onChange={(e) => setNewRecord({...newRecord, temperature: e.target.value})}
+                    required
+                  />
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-black text-slate-500 ml-1">측정자</label>
+                <input 
+                  type="text"
+                  placeholder="측정자 성함"
+                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:ring-2 focus:ring-blue-500 transition-all"
+                  value={newRecord.worker}
+                  onChange={(e) => setNewRecord({...newRecord, worker: e.target.value})}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-black text-slate-500 ml-1">파일 첨부</label>
+                <div 
+                  onClick={() => fileInputRef.current?.click()}
+                  className="w-full px-4 py-3 bg-slate-50 border-2 border-dashed border-slate-200 rounded-2xl text-sm flex items-center justify-center cursor-pointer hover:bg-slate-100 transition-all"
+                >
+                  <input 
+                    type="file" 
+                    ref={fileInputRef} 
+                    className="hidden" 
+                    onChange={handleFileChange}
+                  />
+                  {newRecord.file ? (
+                    <span className="text-blue-600 font-bold flex items-center">
+                      <Paperclip className="w-4 h-4 mr-2" /> {newRecord.file.name}
+                    </span>
+                  ) : (
+                    <span className="text-slate-400 flex items-center">
+                      <Plus className="w-4 h-4 mr-2" /> 파일 선택
+                    </span>
+                  )}
+                </div>
+              </div>
+              <div className="pt-4 flex gap-3">
+                <button 
+                  type="button"
+                  onClick={() => setIsManualAddOpen(false)}
+                  className="flex-1 px-4 py-3 bg-slate-100 text-slate-600 rounded-2xl text-sm font-bold hover:bg-slate-200 transition-colors"
+                >
+                  취소
+                </button>
+                <button 
+                  type="submit"
+                  disabled={isSaving}
+                  className={`flex-2 px-4 py-3 bg-blue-600 text-white rounded-2xl text-sm font-bold hover:bg-blue-700 transition-colors shadow-lg shadow-blue-200 ${isSaving ? 'opacity-50 cursor-not-allowed' : ''}`}
+                >
+                  {isSaving ? '저장 중...' : '저장하기'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Lightbox Component */}
       {previewImageUrl && (

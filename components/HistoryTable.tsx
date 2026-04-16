@@ -9,6 +9,7 @@ interface HistoryTableProps {
   type: 'maintenance' | 'landscaping' | 'construction' | 'water_quality';
   facilities: Hotspot[];
   onAdd?: (data: any) => void;
+  targetOptions?: string[];
 }
 
 const ORDERED_ORG_NAMES = [
@@ -19,7 +20,7 @@ const ORDERED_ORG_NAMES = [
   '충남서부 장애인종합복지관'
 ];
 
-const HistoryTable: React.FC<HistoryTableProps> = ({ title, type, facilities, onAdd }) => {
+const HistoryTable: React.FC<HistoryTableProps> = ({ title, type, facilities, onAdd, targetOptions }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [newRecord, setNewRecord] = useState<any>({ 
@@ -27,6 +28,7 @@ const HistoryTable: React.FC<HistoryTableProps> = ({ title, type, facilities, on
     date: getCurrentKSTDateString(), 
     title: '', 
     contractor: '',
+    worker: '',
     ph: '',
     chlorine: '',
     turbidity: '',
@@ -49,7 +51,7 @@ const HistoryTable: React.FC<HistoryTableProps> = ({ title, type, facilities, on
       } else if (type === 'landscaping') {
         return f.landscaping.map(l => ({ ...l, facilityName: f.name }));
       } else if (type === 'water_quality') {
-        return (f.waterQualityLogs || []).map(w => ({ ...w, facilityName: f.name }));
+        return (f.waterQualityLogs || []).map(w => ({ ...w, facilityName: w.tankName || f.name }));
       } else {
         return f.history.map(h => ({ ...h, facilityName: f.name }));
       }
@@ -74,11 +76,18 @@ const HistoryTable: React.FC<HistoryTableProps> = ({ title, type, facilities, on
   );
 
   const handleExport = () => {
-    const headers = ['날짜', '대상 시설', '작업/공사명', '담당자/업체'];
+    const headers = [
+      '날짜', 
+      type === 'water_quality' ? '저수조 명' : '대상 시설', 
+      type === 'water_quality' ? '수질 측정값' : '작업/공사명', 
+      type === 'water_quality' ? '측정자' : '담당자/업체'
+    ];
     const rows = filteredRecords.map((r: any) => [
       r.date || r.period,
       r.facilityName,
-      r.description || r.title,
+      type === 'water_quality' 
+        ? `pH:${r.ph}, Cl:${r.chlorine}, Turb:${r.turbidity}, Temp:${r.temperature}`
+        : (r.description || r.title),
       r.worker || r.contractor
     ]);
     
@@ -134,6 +143,7 @@ const HistoryTable: React.FC<HistoryTableProps> = ({ title, type, facilities, on
       date: getCurrentKSTDateString(), 
       title: '', 
       contractor: '',
+      worker: '',
       ph: '',
       chlorine: '',
       turbidity: '',
@@ -146,12 +156,12 @@ const HistoryTable: React.FC<HistoryTableProps> = ({ title, type, facilities, on
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <h2 className="text-xl font-bold text-slate-900">{title}</h2>
         <div className="flex gap-2">
-          {(type === 'construction' || type === 'landscaping') && (
+          {(type === 'construction' || type === 'landscaping' || type === 'water_quality') && (
             <button 
               onClick={() => setIsAddModalOpen(true)}
               className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-xl text-sm font-bold hover:bg-blue-700 transition-colors shadow-sm"
             >
-              <Plus className="w-4 h-4 mr-2" /> 실적 추가
+              <Plus className="w-4 h-4 mr-2" /> {type === 'water_quality' ? '측정 기록 추가' : '실적 추가'}
             </button>
           )}
           <button className="flex items-center px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-50 transition-colors shadow-sm">
@@ -171,7 +181,7 @@ const HistoryTable: React.FC<HistoryTableProps> = ({ title, type, facilities, on
           <Search className="w-4 h-4 text-slate-400 mr-3" />
           <input 
             type="text" 
-            placeholder="시설명, 작업 내용 또는 작업자 검색..." 
+            placeholder={type === 'water_quality' ? "저수조 명, 측정자 검색..." : "시설명, 작업 내용 또는 작업자 검색..."}
             className="flex-1 bg-transparent border-none text-sm focus:ring-0 placeholder:text-slate-400"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
@@ -183,7 +193,9 @@ const HistoryTable: React.FC<HistoryTableProps> = ({ title, type, facilities, on
             <thead>
               <tr className="bg-slate-50/50">
                 <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">날짜 / 기간</th>
-                <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">대상 시설</th>
+                <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                  {type === 'water_quality' ? '저수조 명' : '대상 시설'}
+                </th>
                 <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
                   {type === 'water_quality' ? '수질 측정값' : '작업/공사명'}
                 </th>
@@ -275,15 +287,17 @@ const HistoryTable: React.FC<HistoryTableProps> = ({ title, type, facilities, on
             </div>
             <form onSubmit={handleSubmit} className="p-6 space-y-4">
               <div className="space-y-1.5">
-                <label className="text-xs font-black text-slate-500 ml-1">대상 시설</label>
+                <label className="text-xs font-black text-slate-500 ml-1">
+                  {type === 'water_quality' ? '저수조 명' : '대상 시설'}
+                </label>
                 <select 
                   className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:ring-2 focus:ring-blue-500 transition-all"
                   value={newRecord.org}
                   onChange={(e) => setNewRecord({...newRecord, org: e.target.value})}
                   required
                 >
-                  <option value="">시설 선택...</option>
-                  {ORDERED_ORG_NAMES.map(name => (
+                  <option value="">{type === 'water_quality' ? '저수조 선택...' : '시설 선택...'}</option>
+                  {(targetOptions || ORDERED_ORG_NAMES).map(name => (
                     <option key={name} value={name}>{name}</option>
                   ))}
                 </select>
@@ -361,8 +375,8 @@ const HistoryTable: React.FC<HistoryTableProps> = ({ title, type, facilities, on
                   type="text"
                   placeholder={type === 'water_quality' ? "측정자 성함" : "담당자 또는 업체명"}
                   className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:ring-2 focus:ring-blue-500 transition-all"
-                  value={newRecord.contractor}
-                  onChange={(e) => setNewRecord({...newRecord, contractor: e.target.value})}
+                  value={type === 'water_quality' ? newRecord.worker : newRecord.contractor}
+                  onChange={(e) => setNewRecord({...newRecord, [type === 'water_quality' ? 'worker' : 'contractor']: e.target.value})}
                 />
               </div>
               <div className="space-y-1.5">

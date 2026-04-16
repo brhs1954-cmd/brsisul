@@ -87,6 +87,7 @@ const App: React.FC = () => {
 
   const refreshDataFromSheets = async () => {
     try {
+      let currentEqList: Equipment[] = [];
       const [buildingData, infoData, vehicleData, equipmentData, noticeData, pathData, logData, constructionData, landscapingPlanData, landscapingData, waterData] = await Promise.all([
         ApiService.fetchData("건축물관리"),
         ApiService.fetchData("info"),
@@ -154,7 +155,7 @@ const App: React.FC = () => {
       }
 
       if (equipmentData && Array.isArray(equipmentData)) {
-        const eqList = equipmentData.map((row: any) => ({
+        currentEqList = equipmentData.map((row: any) => ({
           id: String(getSheetValue(row, 'id') || '').trim(),
           name: String(getSheetValue(row, '설비명') || '').trim(),
           location: String(getSheetValue(row, '설비위치') || '').trim(),
@@ -171,7 +172,7 @@ const App: React.FC = () => {
           x: parseFloat(getSheetValue(row, 'coordX', 'x') || '0'),
           y: parseFloat(getSheetValue(row, 'coordY', 'y') || '0'),
         } as Equipment)).filter(eq => eq.name);
-        setRawEquipment(eqList);
+        setRawEquipment(currentEqList);
       }
 
       if (noticeData && Array.isArray(noticeData)) {
@@ -297,21 +298,37 @@ const App: React.FC = () => {
 
       let waterQualityMap: Record<string, any[]> = {};
       if (waterData && Array.isArray(waterData)) {
+        const seenWater = new Set();
         waterData.forEach((row: any) => {
-          const org = String(getSheetValue(row, '대상 시설', '대상시설', '시설명', '시설', 'org') || '').trim();
-          const date = formatDateToKST(getSheetValue(row, '날짜', 'timestamp'));
+          const tankName = String(getSheetValue(row, '저수조 명', '저수조명', '대상 시설', '대상시설', '시설명', '시설', 'org') || '').trim();
+          const normalizedTankName = tankName.toLowerCase().replace(/\s+/g, '');
+          
+          const date = formatDateToKST(getSheetValue(row, '날짜', 'timestamp')).trim();
           const ph = Number(getSheetValue(row, 'pH') || 0);
           const chlorine = Number(getSheetValue(row, '잔류염소') || 0);
           const turbidity = Number(getSheetValue(row, '탁도') || 0);
           const temperature = Number(getSheetValue(row, '수온') || 0);
-          const worker = String(getSheetValue(row, '담당자', 'worker') || '미지정');
-          const fileUrl = String(getSheetValue(row, '첨부파일', 'fileUrl', 'link') || '');
+          const worker = String(getSheetValue(row, '담당자', 'worker') || '미지정').trim();
+          const fileUrl = String(getSheetValue(row, '첨부파일', 'fileUrl', 'link') || '').trim();
 
-          if (org) {
-            if (!waterQualityMap[org]) waterQualityMap[org] = [];
-            waterQualityMap[org].push({
+          const waterKey = `${tankName}-${date}-${ph}-${chlorine}-${turbidity}-${temperature}-${worker}`.toLowerCase().replace(/\s+/g, '');
+          if (seenWater.has(waterKey)) return;
+          seenWater.add(waterKey);
+
+          if (tankName) {
+            // 저수조가 속한 시설을 찾아서 매핑 (이력 표시용)
+            // 공백 제거 후 비교하여 매칭 확률 높임
+            const tankEquipment = currentEqList.find(eq => 
+              eq.name.toLowerCase().replace(/\s+/g, '') === normalizedTankName
+            );
+            const targetOrg = tankEquipment ? tankEquipment.orgName : '기타';
+
+            if (!waterQualityMap[targetOrg]) waterQualityMap[targetOrg] = [];
+            waterQualityMap[targetOrg].push({
               id: `water-${Date.now()}-${Math.random()}`,
               date,
+              type: 'water_quality',
+              tankName,
               ph,
               chlorine,
               turbidity,
@@ -321,14 +338,20 @@ const App: React.FC = () => {
             });
           }
         });
+        // 최신순 정렬
+        Object.keys(waterQualityMap).forEach(key => {
+          waterQualityMap[key].sort((a, b) => b.date.localeCompare(a.date));
+        });
       }
+
+      // 4. 건축물 데이터 처리 및 이력 병합
+      let finalFacilities = facilities; // 기본값은 현재 상태 (초기 데이터 포함)
 
       if (buildingData && Array.isArray(buildingData)) {
         const seenIds = new Set();
-        const mergedFacilities = buildingData
+        finalFacilities = buildingData
           .map((row: any, index: number) => {
             let rowId = String(getSheetValue(row, 'id') || '').trim();
-            // ID가 없는 경우 인덱스를 기반으로 임시 ID 생성하여 누락 방지
             if (!rowId) rowId = `temp-bld-${index}`;
             
             if (seenIds.has(rowId)) return null;
@@ -379,9 +402,18 @@ const App: React.FC = () => {
             } as Hotspot;
           })
           .filter((f): f is Hotspot => f !== null && !!f.name);
-        
-        setFacilities(mergedFacilities);
+      } else {
+        // 건축물 시트가 비어있거나 없는 경우, 기존 시설 데이터에 로그만 병합
+        finalFacilities = facilities.map(f => ({
+          ...f,
+          history: historyMap[f.name] || f.history || [],
+          construction: constructionMap[f.name] || f.construction || [],
+          landscaping: landscapingMap[f.name] || f.landscaping || [],
+          waterQualityLogs: waterQualityMap[f.name] || f.waterQualityLogs || []
+        }));
       }
+      
+      setFacilities(finalFacilities);
 
       if (landscapingPlanData && Array.isArray(landscapingPlanData)) {
         setLandscapingPlans(landscapingPlanData);
@@ -601,7 +633,7 @@ const App: React.FC = () => {
       case 'equipment': return <EquipmentManager equipment={rawEquipment} onRefresh={refreshDataFromSheets} />;
       case 'vehicle': return <VehicleManager vehicles={rawVehicles} onRefresh={refreshDataFromSheets} />;
       case 'landscaping': return <LandscapingView facilities={facilities} plans={landscapingPlans} onRefresh={refreshDataFromSheets} onAdd={handleAddLandscaping} />;
-      case 'water': return <WaterQualityView facilities={facilities} equipment={rawEquipment} onAddLog={handleAddLog} />;
+      case 'water': return <WaterQualityView facilities={facilities} equipment={rawEquipment} onAddLog={handleAddLog} onRefresh={refreshDataFromSheets} />;
       case 'construction': return <HistoryTable title="공사 및 대수선 관리 실적" type="construction" facilities={facilities} onAdd={handleAddConstruction} />;
       case 'admin': return (
         <div className="space-y-8 animate-in fade-in duration-700">

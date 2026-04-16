@@ -44,7 +44,7 @@ const Dashboard: React.FC<DashboardProps> = ({ facilities, contacts, notices, on
   const FILE_ID = "1Jl-RMMoh6u_McdcUl58PiaEESVf42vBI";
   const MAP_IMAGE_URL = `https://lh3.googleusercontent.com/d/${FILE_ID}`;
 
-  // 시설 데이터를 기반으로 차트 데이터 생성
+  // 시설 데이터를 기반으로 차트 데이터 생성 (유지보수 활동 로그 수 집계)
   const chartData = useMemo(() => {
     const counts: Record<string, number> = {};
     facilities.forEach(f => {
@@ -54,8 +54,13 @@ const Dashboard: React.FC<DashboardProps> = ({ facilities, contacts, notices, on
                        f.name.includes('요양원') ? '요양원' :
                        f.name.includes('작업장') ? '작업장' :
                        f.name.includes('정심원') ? '정심원' : '기타';
-      counts[category] = (counts[category] || 0) + 1;
+      
+      // 단순히 건물을 세는 것이 아니라, 해당 건물의 유지보수 이력(history) 개수를 합산
+      const activityCount = f.history ? f.history.length : 0;
+      counts[category] = (counts[category] || 0) + activityCount;
     });
+    
+    // 데이터가 있는 항목만 표시하거나, 0인 항목도 포함할지 결정 (여기서는 0인 항목도 포함하여 구조 유지)
     return Object.entries(counts).map(([name, count]) => ({ name, count }));
   }, [facilities]);
 

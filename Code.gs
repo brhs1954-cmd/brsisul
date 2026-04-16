@@ -10,7 +10,7 @@ function doGet(e) {
   
   if (!sheet) {
     // 필수 시트가 없는 경우 에러 대신 빈 배열 반환 (초기화 편의성)
-    const autoCreateSheets = ["log", "관로관리", "공지사항", "설비관리", "차량현황", "공사관리", "조경계획", "조경관리"];
+    const autoCreateSheets = ["log", "관로관리", "공지사항", "설비관리", "차량현황", "공사관리", "조경계획", "조경관리", "수질관리", "info", "건축물관리"];
     if (autoCreateSheets.indexOf(sheetName) !== -1) {
       if (sheetName === "조경계획") {
         // 초기 데이터 삽입
@@ -357,14 +357,14 @@ function doPost(e) {
       let waterSheet = ss.getSheetByName("수질관리");
       if (!waterSheet) {
         waterSheet = ss.insertSheet("수질관리");
-        waterSheet.appendRow(["대상 시설", "날짜", "pH", "잔류염소", "탁도", "수온", "담당자", "첨부파일", "timestamp"]);
+        waterSheet.appendRow(["저수조 명", "날짜", "pH", "잔류염소", "탁도", "수온", "담당자", "첨부파일", "timestamp"]);
       }
       
       const val = params.value || {};
       const fileUrl = uploadFile(val.fileData, val.fileName, val.fileType, params.org);
 
       waterSheet.appendRow([
-        params.org,
+        params.org, // 프론트에서 org 필드에 저수조 명을 담아 보냄
         val.date || "",
         val.ph || "",
         val.chlorine || "",
