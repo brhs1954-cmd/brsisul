@@ -95,16 +95,22 @@ export const ApiService = {
 
   async updateBuildingInfo(id: string, info: any) {
     try {
+      const payload = {
+        action: 'UPDATE_BUILDING',
+        id: id,
+        info: info, // Wrapped for some script versions
+        ...info,    // Flattened for others
+        coordX: info.x,
+        coordY: info.y
+      };
+
       const response = await fetch(GOOGLE_SHEET_API_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'text/plain' },
-        body: JSON.stringify({ 
-          action: 'UPDATE_BUILDING',
-          id: id,
-          ...info
-        }),
+        body: JSON.stringify(payload),
       });
       const result = await response.json();
+      console.log('Building update result:', result);
       return { success: result.result === 'success' };
     } catch (error) {
       console.error('Update error:', error);
@@ -114,16 +120,22 @@ export const ApiService = {
 
   async updateEquipmentInfo(id: string, info: any) {
     try {
+      const payload = {
+        action: 'UPDATE_EQUIPMENT',
+        id: id,
+        info: info, // Wrapped
+        ...info,    // Flattened
+        coordX: info.x,
+        coordY: info.y
+      };
+      
       const response = await fetch(GOOGLE_SHEET_API_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'text/plain' },
-        body: JSON.stringify({ 
-          action: 'UPDATE_EQUIPMENT',
-          id: id,
-          ...info
-        }),
+        body: JSON.stringify(payload),
       });
       const result = await response.json();
+      console.log('Equipment update result:', result);
       return { success: result.result === 'success' };
     } catch (error) {
       console.error('Equipment update error:', error);
@@ -133,15 +145,21 @@ export const ApiService = {
 
   async addEquipment(info: any) {
     try {
+      const payload = {
+        action: 'ADD_EQUIPMENT',
+        info: info, // Wrapped
+        ...info,    // Flattened
+        coordX: info.x,
+        coordY: info.y
+      };
+
       const response = await fetch(GOOGLE_SHEET_API_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'text/plain' },
-        body: JSON.stringify({ 
-          action: 'ADD_EQUIPMENT',
-          ...info
-        }),
+        body: JSON.stringify(payload),
       });
       const result = await response.json();
+      console.log('Equipment add result:', result);
       if (result.result === 'success') return { success: true };
       
       // If ADD_EQUIPMENT action is not supported, try UPDATE_EQUIPMENT as fallback

@@ -28,8 +28,9 @@ const EquipmentEditModal: React.FC<EquipmentEditModalProps> = ({
     photoUrl: '',
     asCompany: '',
     asTel: '',
-    // Initialize remarks field
     remarks: '',
+    x: 50,
+    y: 50
   });
   
   const [isSaving, setIsSaving] = useState(false);
@@ -59,8 +60,9 @@ const EquipmentEditModal: React.FC<EquipmentEditModalProps> = ({
         photoUrl: equipment.photoUrl || '',
         asCompany: equipment.asCompany || '',
         asTel: equipment.asTel || '',
-        // Map remarks field
         remarks: equipment.remarks || '',
+        x: equipment.x ?? 50,
+        y: equipment.y ?? 50
       });
     }
   }, [equipment]);

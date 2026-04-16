@@ -39,7 +39,9 @@ const BuildingEditModal: React.FC<BuildingEditModalProps> = ({
     elevatorCount: '',
     exteriorFinish: '',
     parkingCapacity: '',
-    photoUrl: ''
+    photoUrl: '',
+    x: 0,
+    y: 0
   });
   
   const [isSaving, setIsSaving] = useState(false);
@@ -77,7 +79,9 @@ const BuildingEditModal: React.FC<BuildingEditModalProps> = ({
         elevatorCount: facility.buildingInfo.elevatorCount || '',
         exteriorFinish: facility.buildingInfo.exteriorFinish || '',
         parkingCapacity: facility.buildingInfo.parkingCapacity || '',
-        photoUrl: facility.buildingInfo.photoUrl || ''
+        photoUrl: facility.buildingInfo.photoUrl || '',
+        x: facility.x || 0,
+        y: facility.y || 0
       });
     }
   }, [facility]);
