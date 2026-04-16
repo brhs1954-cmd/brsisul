@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { Hotspot } from '../types';
 import { ApiService } from '../api';
+import { formatTimestampToKST } from '../lib/dateUtils';
 
 interface EmergencyAlertModalProps {
   facilities: Hotspot[];
@@ -59,7 +60,7 @@ const EmergencyAlertModal: React.FC<EmergencyAlertModalProps> = ({ facilities, c
         value: {
           category: categoryName,
           message: message,
-          timestamp: new Date().toLocaleString('ko-KR')
+          timestamp: formatTimestampToKST(new Date())
         }
       });
       

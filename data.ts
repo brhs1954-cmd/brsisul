@@ -17,10 +17,14 @@ export const FACILITIES: Hotspot[] = [
     history: [
       { id: 'h-js-1', date: '2024-11-15', type: 'maintenance', description: '생활관 내부 도배 및 장판 보수', worker: '정심원 관리팀' }
     ],
-    landscaping: ['화목 정원 가꾸기', '생활관 주변 제초'],
+    landscaping: [
+      { id: 'l-js-1', date: '2024-11-01', title: '화목 정원 가꾸기', worker: '정심조경팀' },
+      { id: 'l-js-2', date: '2024-11-01', title: '생활관 주변 제초', worker: '정심조경팀' }
+    ],
     construction: [
       { id: 'c-js-1', title: '생활관 증축 및 개보수', period: '2022.03 - 2022.12', contractor: '대건건설', cost: '2.5억원' }
     ],
+    waterQualityLogs: [],
     documents: [],
     contactInfo: {
       dept: '운영지원팀',
@@ -78,8 +82,11 @@ export const FACILITIES: Hotspot[] = [
     history: [
       { id: 'h-nh-1', date: '2024-10-20', type: 'maintenance', description: '휠체어 리프트 정기 점검', worker: '리프트안전' }
     ],
-    landscaping: ['요양원 옥상 정원 관리'],
+    landscaping: [
+      { id: 'l-nh-1', date: '2024-11-01', title: '요양원 옥상 정원 관리', worker: '정심조경팀' }
+    ],
     construction: [],
+    waterQualityLogs: [],
     documents: [],
     contactInfo: {
       dept: '간호관리팀',
@@ -131,6 +138,7 @@ export const FACILITIES: Hotspot[] = [
     construction: [
       { id: 'c-ws-1', title: '작업장 냉난방기 전면 교체', period: '2023.07', contractor: 'LG시스템', cost: '3,200만원' }
     ],
+    waterQualityLogs: [],
     documents: [],
     contactInfo: {
       dept: '직업재활팀',
@@ -180,10 +188,13 @@ export const FACILITIES: Hotspot[] = [
     history: [
       { id: 'h1', date: '2024-03-15', type: 'maintenance', description: '창호 단열 성능 점검', worker: '김시설' }
     ],
-    landscaping: ['교정 수목 전정 작업'],
+    landscaping: [
+      { id: 'l-sc-1', date: '2024-11-01', title: '교정 수목 전정 작업', worker: '정심조경팀' }
+    ],
     construction: [
       { id: 'c-sc-1', title: '운동장 배수관 정비', period: '2024.01', contractor: '우수건설', cost: '1,200만원' }
     ],
+    waterQualityLogs: [],
     documents: [],
     contactInfo: {
       dept: '행정실',
@@ -241,8 +252,11 @@ export const FACILITIES: Hotspot[] = [
     history: [
       { id: 'h-wf-1', date: '2024-11-01', type: 'maintenance', description: '메인 현관 자동문 보수', worker: '자동시스템' }
     ],
-    landscaping: ['복지관 진입로 화단 정비'],
+    landscaping: [
+      { id: 'l-wf-1', date: '2024-11-01', title: '복지관 진입로 화단 정비', worker: '정심조경팀' }
+    ],
     construction: [],
+    waterQualityLogs: [],
     documents: [],
     contactInfo: {
       dept: '기획홍보팀',

@@ -60,6 +60,14 @@ export interface BuildingInfo {
   photoUrl?: string; 
 }
 
+export interface LandscapingLog {
+  id: string;
+  date: string;
+  title: string;
+  worker: string;
+  fileUrl?: string;
+}
+
 export interface Hotspot {
   id: string;
   name: string;
@@ -68,8 +76,9 @@ export interface Hotspot {
   y: number;
   status: FacilityStatus;
   history: ManagementLog[];
-  landscaping: string[];
+  landscaping: LandscapingLog[];
   construction: ConstructionLog[];
+  waterQualityLogs: WaterQualityLog[];
   documents: FacilityDocument[];
   waterQuality?: WaterQualityMetric;
   buildingInfo?: BuildingInfo;
@@ -116,6 +125,18 @@ export interface WaterQualityMetric {
   turbidity: number;
   temperature: number;
   lastChecked: string;
+}
+
+export interface WaterQualityLog {
+  id: string;
+  date: string;
+  facilityName: string;
+  ph: number;
+  chlorine: number;
+  turbidity: number;
+  temperature: number;
+  worker: string;
+  fileUrl?: string;
 }
 
 export interface ManagementLog {

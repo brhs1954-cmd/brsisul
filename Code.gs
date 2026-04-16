@@ -10,8 +10,22 @@ function doGet(e) {
   
   if (!sheet) {
     // 필수 시트가 없는 경우 에러 대신 빈 배열 반환 (초기화 편의성)
-    const autoCreateSheets = ["log", "관로관리", "공지사항", "설비관리", "차량현황", "공사관리"];
+    const autoCreateSheets = ["log", "관로관리", "공지사항", "설비관리", "차량현황", "공사관리", "조경계획", "조경관리"];
     if (autoCreateSheets.indexOf(sheetName) !== -1) {
+      if (sheetName === "조경계획") {
+        // 초기 데이터 삽입
+        const initialData = [
+          ["season", "months", "tasks"],
+          ["봄 (Spring)", "3월 - 5월", "수목 식재 및 이식, 춘계 비료 살포, 교정 내 봄꽃 식재, 병충해 예방 방제"],
+          ["여름 (Summer)", "6월 - 8월", "정기 예초 및 제초 작업, 수분 공급(관수), 하계 전정(가지치기), 돌발 해충 집중 방제"],
+          ["가을 (Autumn)", "9월 - 11월", "추계 비료 살포, 낙엽 수거 및 청소, 월동 준비(짚싸기), 수형 정리 전정"],
+          ["겨울 (Winter)", "12월 - 2월", "염화칼슘 피해 방지, 수목 월동 보호구 점검, 폭설 대비 가지 지지, 장비 정비"]
+        ];
+        const newSheet = ss.insertSheet("조경계획");
+        initialData.forEach(row => newSheet.appendRow(row));
+        return ContentService.createTextOutput(JSON.stringify(initialData.slice(1).map(r => ({season: r[0], months: r[1], tasks: r[2]}))))
+          .setMimeType(ContentService.MimeType.JSON);
+      }
       return ContentService.createTextOutput(JSON.stringify([]))
         .setMimeType(ContentService.MimeType.JSON);
     }
@@ -60,12 +74,31 @@ function uploadFile(fileData, fileName, fileType, orgName) {
   if (!fileData || !fileName) return "";
   try {
     const targetFolderId = "1zI3PIOGZ-PT04wOiNOi5A1Fupzh5_ZyP";
-    const rootFolder = DriveApp.getFolderById(targetFolderId);
+    let rootFolder;
+    try {
+      rootFolder = DriveApp.getFolderById(targetFolderId);
+    } catch (e) {
+      console.error("Root folder access error: " + e.toString());
+      // 폴더 접근 실패 시 기본 드라이브에 저장하거나 에러 반환
+      return "";
+    }
+    
     const orgFolder = getOrCreateFolder(rootFolder, orgName || "기타");
     const contentType = fileType || "application/octet-stream";
-    const decodedFile = Utilities.base64Decode(fileData.split(",")[1] || fileData);
+    
+    // Data URL 형식인 경우 헤더 제거
+    let base64Data = fileData;
+    if (fileData.indexOf(",") > -1) {
+      base64Data = fileData.split(",")[1];
+    }
+    
+    const decodedFile = Utilities.base64Decode(base64Data);
     const blob = Utilities.newBlob(decodedFile, contentType, fileName);
     const file = orgFolder.createFile(blob);
+    
+    // 공유 권한 설정 (링크가 있는 모든 사용자에게 읽기 권한 부여)
+    file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+    
     return file.getUrl();
   } catch (err) {
     console.error("File upload error: " + err.toString());
@@ -83,6 +116,8 @@ function doPost(e) {
     sheetName = "설비관리";
   } else if (action === "NOTICE" || action === "ADD_NOTICE" || action === "DELETE_NOTICE" || (params.category === "NOTICE" && action === "LOG")) {
     sheetName = "공지사항";
+  } else if (action === "UPDATE_LANDSCAPING_PLAN") {
+    sheetName = "조경계획";
   } else if (action === "SAVE_PATH" || action === "DELETE_PATH" || action === "UPDATE_PATH") {
     sheetName = "관로관리";
   }
@@ -139,8 +174,26 @@ function doPost(e) {
       p.type, 
       p.color, 
       JSON.stringify(p.points), 
-      new Date()
+      Utilities.formatDate(new Date(), "GMT+9", "yyyy-MM-dd HH:mm:ss")
     ]);
+    return ContentService.createTextOutput(JSON.stringify({result: "success"}))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+
+  // 조경 계획 업데이트
+  if (action === "UPDATE_LANDSCAPING_PLAN") {
+    const plans = params.plans; // Array of {season, months, tasks}
+    if (!plans || !Array.isArray(plans)) {
+      return ContentService.createTextOutput(JSON.stringify({result: "error", message: "Invalid plans data"}))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+    
+    targetSheet.clear();
+    targetSheet.appendRow(["season", "months", "tasks"]);
+    plans.forEach(p => {
+      targetSheet.appendRow([p.season, p.months, p.tasks]);
+    });
+    
     return ContentService.createTextOutput(JSON.stringify({result: "success"}))
       .setMimeType(ContentService.MimeType.JSON);
   }
@@ -181,7 +234,7 @@ function doPost(e) {
     targetSheet.appendRow([
       newId, 
       val.title || params.title, 
-      val.date || new Date().toISOString().split('T')[0], 
+      val.date || Utilities.formatDate(new Date(), "GMT+9", "yyyy-MM-dd"), 
       val.isUrgent ? "true" : "false", 
       val.category || "시설", 
       val.content || "", 
@@ -280,7 +333,46 @@ function doPost(e) {
         params.title || "",
         val.contractor || "",
         fileUrl,
-        new Date()
+        Utilities.formatDate(new Date(), "GMT+9", "yyyy-MM-dd HH:mm:ss")
+      ]);
+    } else if (params.category === "LANDSCAPING") {
+      let landSheet = ss.getSheetByName("조경관리");
+      if (!landSheet) {
+        landSheet = ss.insertSheet("조경관리");
+        landSheet.appendRow(["대상 시설", "날짜 / 기간", "작업/공사명", "담당자 / 업체", "첨부파일", "timestamp"]);
+      }
+      
+      const val = params.value || {};
+      const fileUrl = uploadFile(val.fileData, val.fileName, val.fileType, params.org);
+
+      landSheet.appendRow([
+        params.org,
+        val.date || "",
+        params.title || "",
+        val.contractor || "",
+        fileUrl,
+        Utilities.formatDate(new Date(), "GMT+9", "yyyy-MM-dd HH:mm:ss")
+      ]);
+    } else if (params.category === "WATER_QUALITY") {
+      let waterSheet = ss.getSheetByName("수질관리");
+      if (!waterSheet) {
+        waterSheet = ss.insertSheet("수질관리");
+        waterSheet.appendRow(["대상 시설", "날짜", "pH", "잔류염소", "탁도", "수온", "담당자", "첨부파일", "timestamp"]);
+      }
+      
+      const val = params.value || {};
+      const fileUrl = uploadFile(val.fileData, val.fileName, val.fileType, params.org);
+
+      waterSheet.appendRow([
+        params.org,
+        val.date || "",
+        val.ph || "",
+        val.chlorine || "",
+        val.turbidity || "",
+        val.temperature || "",
+        val.worker || "",
+        fileUrl,
+        Utilities.formatDate(new Date(), "GMT+9", "yyyy-MM-dd HH:mm:ss")
       ]);
     } else {
       let logSheet = ss.getSheetByName("log");
@@ -288,7 +380,7 @@ function doPost(e) {
         logSheet = ss.insertSheet("log");
         logSheet.appendRow(["timestamp", "org", "category", "title", "value"]);
       }
-      logSheet.appendRow([new Date(), params.org, params.category, params.title, JSON.stringify(params.value)]);
+      logSheet.appendRow([Utilities.formatDate(new Date(), "GMT+9", "yyyy-MM-dd HH:mm:ss"), params.org, params.category, params.title, JSON.stringify(params.value)]);
     }
     return ContentService.createTextOutput(JSON.stringify({result: "success"}))
       .setMimeType(ContentService.MimeType.JSON);

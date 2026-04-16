@@ -1,13 +1,14 @@
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useMemo } from 'react';
 import { Hotspot } from '../types';
 import { Search, Filter, Download, MoreVertical, Calendar, User, Tag, Plus, X, Paperclip, ExternalLink } from 'lucide-react';
+import { getCurrentKSTDateString } from '../lib/dateUtils';
 
 interface HistoryTableProps {
   title: string;
-  type: 'maintenance' | 'landscaping' | 'construction';
+  type: 'maintenance' | 'landscaping' | 'construction' | 'water_quality';
   facilities: Hotspot[];
-  onAdd?: (data: { org: string; date: string; title: string; contractor: string; file?: { name: string; type: string; data: string } }) => void;
+  onAdd?: (data: any) => void;
 }
 
 const ORDERED_ORG_NAMES = [
@@ -21,11 +22,15 @@ const ORDERED_ORG_NAMES = [
 const HistoryTable: React.FC<HistoryTableProps> = ({ title, type, facilities, onAdd }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [newRecord, setNewRecord] = useState<{ org: string; date: string; title: string; contractor: string; file?: { name: string; type: string; data: string } }>({ 
+  const [newRecord, setNewRecord] = useState<any>({ 
     org: '', 
-    date: new Date().toISOString().split('T')[0], 
+    date: getCurrentKSTDateString(), 
     title: '', 
-    contractor: '' 
+    contractor: '',
+    ph: '',
+    chlorine: '',
+    turbidity: '',
+    temperature: ''
   });
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -37,15 +42,30 @@ const HistoryTable: React.FC<HistoryTableProps> = ({ title, type, facilities, on
     return (indexA === -1 ? 999 : indexA) - (indexB === -1 ? 999 : indexB);
   });
 
-  const allRecords = sortedFacilities.flatMap<any>(f => {
-    if (type === 'construction') {
-      return f.construction.map(c => ({ ...c, facilityName: f.name }));
-    } else if (type === 'landscaping') {
-      return f.landscaping.map((l, i) => ({ id: `l-${f.id}-${i}`, title: l, date: '2024-11-01', worker: '정심조경팀', facilityName: f.name }));
-    } else {
-      return f.history.map(h => ({ ...h, facilityName: f.name }));
-    }
-  });
+  const allRecords = useMemo(() => {
+    const records = sortedFacilities.flatMap<any>(f => {
+      if (type === 'construction') {
+        return f.construction.map(c => ({ ...c, facilityName: f.name }));
+      } else if (type === 'landscaping') {
+        return f.landscaping.map(l => ({ ...l, facilityName: f.name }));
+      } else if (type === 'water_quality') {
+        return (f.waterQualityLogs || []).map(w => ({ ...w, facilityName: f.name }));
+      } else {
+        return f.history.map(h => ({ ...h, facilityName: f.name }));
+      }
+    });
+
+    // 중복 제거 (대상시설, 날짜, 내용, 담당자가 모두 같은 경우)
+    const seen = new Set();
+    return records.filter(r => {
+      const key = `${r.facilityName}-${r.date || r.period}-${r.description || r.title}-${r.worker || r.contractor}`
+        .toLowerCase()
+        .replace(/\s+/g, '');
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }, [sortedFacilities, type]);
 
   const filteredRecords = allRecords.filter((r: any) => 
     (r.facilityName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -70,7 +90,7 @@ const HistoryTable: React.FC<HistoryTableProps> = ({ title, type, facilities, on
     const blob = new Blob(["\ufeff" + csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
-    link.setAttribute('download', `${title}_${new Date().toISOString().split('T')[0]}.csv`);
+    link.setAttribute('download', `${title}_${getCurrentKSTDateString()}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -103,13 +123,22 @@ const HistoryTable: React.FC<HistoryTableProps> = ({ title, type, facilities, on
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newRecord.org || !newRecord.title) {
-      alert('시설명과 작업명은 필수입니다.');
+    if (!newRecord.org || (type !== 'water_quality' && !newRecord.title)) {
+      alert('필수 항목을 입력해주세요.');
       return;
     }
     onAdd?.(newRecord);
     setIsAddModalOpen(false);
-    setNewRecord({ org: '', date: new Date().toISOString().split('T')[0], title: '', contractor: '' });
+    setNewRecord({ 
+      org: '', 
+      date: getCurrentKSTDateString(), 
+      title: '', 
+      contractor: '',
+      ph: '',
+      chlorine: '',
+      turbidity: '',
+      temperature: ''
+    });
   };
 
   return (
@@ -117,7 +146,7 @@ const HistoryTable: React.FC<HistoryTableProps> = ({ title, type, facilities, on
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <h2 className="text-xl font-bold text-slate-900">{title}</h2>
         <div className="flex gap-2">
-          {type === 'construction' && (
+          {(type === 'construction' || type === 'landscaping') && (
             <button 
               onClick={() => setIsAddModalOpen(true)}
               className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-xl text-sm font-bold hover:bg-blue-700 transition-colors shadow-sm"
@@ -155,7 +184,9 @@ const HistoryTable: React.FC<HistoryTableProps> = ({ title, type, facilities, on
               <tr className="bg-slate-50/50">
                 <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">날짜 / 기간</th>
                 <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">대상 시설</th>
-                <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">작업/공사명</th>
+                <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                  {type === 'water_quality' ? '수질 측정값' : '작업/공사명'}
+                </th>
                 <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">담당자 / 업체</th>
                 <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">첨부파일</th>
                 <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-right">상세</th>
@@ -177,7 +208,16 @@ const HistoryTable: React.FC<HistoryTableProps> = ({ title, type, facilities, on
                   </td>
                   <td className="px-6 py-4">
                     <div className="text-sm font-bold text-slate-800">
-                      {record.description || record.title}
+                      {type === 'water_quality' ? (
+                        <div className="flex gap-2 text-[10px]">
+                          <span className="bg-blue-50 px-1.5 py-0.5 rounded">pH: {record.ph}</span>
+                          <span className="bg-emerald-50 px-1.5 py-0.5 rounded">Cl: {record.chlorine}</span>
+                          <span className="bg-amber-50 px-1.5 py-0.5 rounded">Turb: {record.turbidity}</span>
+                          <span className="bg-rose-50 px-1.5 py-0.5 rounded">Temp: {record.temperature}°</span>
+                        </div>
+                      ) : (
+                        record.description || record.title
+                      )}
                     </div>
                   </td>
                   <td className="px-6 py-4">
@@ -224,7 +264,11 @@ const HistoryTable: React.FC<HistoryTableProps> = ({ title, type, facilities, on
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
             <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
-              <h3 className="text-lg font-black text-slate-900">공사 실적 추가</h3>
+              <h3 className="text-lg font-black text-slate-900">
+                {type === 'construction' ? '공사 실적 추가' : 
+                 type === 'landscaping' ? '조경 실적 추가' : 
+                 type === 'water_quality' ? '수질 측정 기록 추가' : '실적 추가'}
+              </h3>
               <button onClick={() => setIsAddModalOpen(false)} className="p-2 hover:bg-slate-200 rounded-full transition-colors">
                 <X className="w-5 h-5 text-slate-500" />
               </button>
@@ -248,29 +292,74 @@ const HistoryTable: React.FC<HistoryTableProps> = ({ title, type, facilities, on
                 <label className="text-xs font-black text-slate-500 ml-1">날짜 / 기간</label>
                 <input 
                   type="text"
-                  placeholder="예: 2024-04-20 ~ 2024-05-13"
+                  placeholder={type === 'water_quality' ? "예: 2024-04-20" : "예: 2024-04-20 ~ 2024-05-13"}
                   className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:ring-2 focus:ring-blue-500 transition-all"
                   value={newRecord.date}
                   onChange={(e) => setNewRecord({...newRecord, date: e.target.value})}
                   required
                 />
               </div>
+              {type === 'water_quality' ? (
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-black text-slate-500 ml-1">pH (수소이온)</label>
+                    <input 
+                      type="number" step="0.1" placeholder="7.0"
+                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:ring-2 focus:ring-blue-500 transition-all"
+                      value={newRecord.ph}
+                      onChange={(e) => setNewRecord({...newRecord, ph: e.target.value})}
+                      required
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-black text-slate-500 ml-1">잔류염소 (mg/L)</label>
+                    <input 
+                      type="number" step="0.01" placeholder="0.5"
+                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:ring-2 focus:ring-blue-500 transition-all"
+                      value={newRecord.chlorine}
+                      onChange={(e) => setNewRecord({...newRecord, chlorine: e.target.value})}
+                      required
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-black text-slate-500 ml-1">탁도 (NTU)</label>
+                    <input 
+                      type="number" step="0.001" placeholder="0.05"
+                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:ring-2 focus:ring-blue-500 transition-all"
+                      value={newRecord.turbidity}
+                      onChange={(e) => setNewRecord({...newRecord, turbidity: e.target.value})}
+                      required
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-black text-slate-500 ml-1">수온 (°C)</label>
+                    <input 
+                      type="number" step="0.1" placeholder="15.0"
+                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:ring-2 focus:ring-blue-500 transition-all"
+                      value={newRecord.temperature}
+                      onChange={(e) => setNewRecord({...newRecord, temperature: e.target.value})}
+                      required
+                    />
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-1.5">
+                  <label className="text-xs font-black text-slate-500 ml-1">작업/공사명</label>
+                  <input 
+                    type="text"
+                    placeholder="작업 내용을 입력하세요"
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:ring-2 focus:ring-blue-500 transition-all"
+                    value={newRecord.title}
+                    onChange={(e) => setNewRecord({...newRecord, title: e.target.value})}
+                    required
+                  />
+                </div>
+              )}
               <div className="space-y-1.5">
-                <label className="text-xs font-black text-slate-500 ml-1">작업/공사명</label>
+                <label className="text-xs font-black text-slate-500 ml-1">{type === 'water_quality' ? '측정자' : '담당자 / 업체'}</label>
                 <input 
                   type="text"
-                  placeholder="작업 내용을 입력하세요"
-                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:ring-2 focus:ring-blue-500 transition-all"
-                  value={newRecord.title}
-                  onChange={(e) => setNewRecord({...newRecord, title: e.target.value})}
-                  required
-                />
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-xs font-black text-slate-500 ml-1">담당자 / 업체</label>
-                <input 
-                  type="text"
-                  placeholder="담당자 또는 업체명"
+                  placeholder={type === 'water_quality' ? "측정자 성함" : "담당자 또는 업체명"}
                   className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:ring-2 focus:ring-blue-500 transition-all"
                   value={newRecord.contractor}
                   onChange={(e) => setNewRecord({...newRecord, contractor: e.target.value})}

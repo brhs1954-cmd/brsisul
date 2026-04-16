@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { ApiService } from '../api';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
+import { getCurrentKSTDateString } from '../lib/dateUtils';
 
 interface VehicleManagerProps {
   vehicles: Vehicle[];
@@ -99,9 +100,7 @@ const VehicleManager: React.FC<VehicleManagerProps> = ({ vehicles, onRefresh }) 
 
   const handleSendToSheet = async (vehicle: Vehicle) => {
     setIsSubmitting(vehicle.id);
-    const now = new Date();
-    const kstDate = new Date(now.getTime() + (9 * 60 * 60 * 1000));
-    const dateStr = kstDate.toISOString().split('T')[0];
+    const dateStr = getCurrentKSTDateString();
 
     try {
       await ApiService.submitData({

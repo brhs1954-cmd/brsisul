@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { 
   Hotspot, FacilityStatus, FacilityDocument, ManagementLog 
 } from '../types';
+import { getCurrentKSTDateString } from '../lib/dateUtils';
 import { 
   X, Calendar, Clipboard, Trees, Hammer, Activity, User, 
   ChevronRight, FileText, FileImage, FileCode, Plus, 
@@ -45,7 +46,7 @@ const FacilityDetailModal: React.FC<FacilityDetailModalProps> = ({ facility, onC
         name: fileName,
         type: type as any,
         url: DRIVE_URL,
-        uploadDate: new Date().toISOString().split('T')[0],
+        uploadDate: getCurrentKSTDateString(),
         size: `${(Math.random() * 5 + 1).toFixed(1)}MB`
       };
       const updatedFacility = { ...facility, documents: [newDoc, ...facility.documents] };
@@ -63,7 +64,7 @@ const FacilityDetailModal: React.FC<FacilityDetailModalProps> = ({ facility, onC
 
     const newLog: ManagementLog = {
       id: `log-${Date.now()}`,
-      date: new Date().toISOString().split('T')[0],
+      date: getCurrentKSTDateString(),
       type: 'maintenance',
       description,
       worker

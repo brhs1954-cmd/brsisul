@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { Notice } from '../types';
 import { ApiService } from '../api';
+import { getCurrentKSTDateString } from '../lib/dateUtils';
 
 interface NoticeManagerProps {
   notices: Notice[];
@@ -88,7 +89,7 @@ const NoticeManager: React.FC<NoticeManagerProps> = ({ notices, onRefresh, onVie
         title: formData.title || '',
         value: {
           ...formData,
-          date: new Date().toISOString().split('T')[0]
+          date: getCurrentKSTDateString()
         }
       });
       alert('공지사항이 성공적으로 등록되었습니다.');

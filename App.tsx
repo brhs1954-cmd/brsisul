@@ -43,22 +43,11 @@ import GoogleSheetsIntegration from './components/GoogleSheetsIntegration';
 import NoticeManager from './components/NoticeManager'; 
 import NoticeDetailModal from './components/NoticeDetailModal'; 
 import { ApiService } from './api';
+import { formatDateToKST } from './lib/dateUtils';
 
 export interface ExtendedContactInfo extends ContactInfo {
   orgName: string;
 }
-
-const formatDateToKST = (input: any): string => {
-  if (!input) return "";
-  const date = new Date(input);
-  if (isNaN(date.getTime())) return String(input);
-  const kstOffset = 9 * 60 * 60 * 1000;
-  const kstDate = new Date(date.getTime() + (date.getTimezoneOffset() * 60000) + kstOffset);
-  const year = kstDate.getFullYear();
-  const month = String(kstDate.getMonth() + 1).padStart(2, '0');
-  const day = String(kstDate.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-};
 
 const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'home' | 'map' | 'building' | 'equipment' | 'history' | 'landscaping' | 'water' | 'vehicle' | 'construction' | 'parking' | 'admin'>('home');
@@ -79,6 +68,7 @@ const App: React.FC = () => {
   const [rawEquipment, setRawEquipment] = useState<Equipment[]>([]);
   const [notices, setNotices] = useState<Notice[]>([]); 
   const [paths, setPaths] = useState<FacilityPath[]>([]);
+  const [landscapingPlans, setLandscapingPlans] = useState<any[]>([]);
 
   // 디바운스 처리를 위한 타이머 레프
   const updateTimerRef = React.useRef<NodeJS.Timeout | null>(null);
@@ -97,7 +87,7 @@ const App: React.FC = () => {
 
   const refreshDataFromSheets = async () => {
     try {
-      const [buildingData, infoData, vehicleData, equipmentData, noticeData, pathData, logData, constructionData] = await Promise.all([
+      const [buildingData, infoData, vehicleData, equipmentData, noticeData, pathData, logData, constructionData, landscapingPlanData, landscapingData, waterData] = await Promise.all([
         ApiService.fetchData("건축물관리"),
         ApiService.fetchData("info"),
         ApiService.fetchData("차량현황"),
@@ -105,7 +95,10 @@ const App: React.FC = () => {
         ApiService.fetchData("공지사항"),
         ApiService.fetchData("관로관리"),
         ApiService.fetchData("log"),
-        ApiService.fetchData("공사관리")
+        ApiService.fetchData("공사관리"),
+        ApiService.fetchData("조경계획"),
+        ApiService.fetchData("조경관리"),
+        ApiService.fetchData("수질관리")
       ]);
 
       if (infoData && Array.isArray(infoData)) {
@@ -251,13 +244,13 @@ const App: React.FC = () => {
         constructionData.forEach((row: any) => {
           // 시트 이미지의 정확한 헤더 명칭 반영 및 다양한 변종 대응
           const org = String(getSheetValue(row, '대상 시설', '대상시설', '시설명', '시설', 'org') || '').trim();
-          const date = formatDateToKST(getSheetValue(row, '날짜 / 기간', '날짜/기간', '날짜', '기간', 'timestamp'));
-          const title = String(getSheetValue(row, '작업/공사명', '작업 / 공사명', '작업명', '공사명', 'title') || '');
-          const contractor = String(getSheetValue(row, '담당자 / 업체', '담당자/업체', '담당자', '업체', 'worker') || '미지정');
-          const fileUrl = String(getSheetValue(row, '첨부파일', 'fileUrl', 'link') || '');
+          const date = formatDateToKST(getSheetValue(row, '날짜 / 기간', '날짜/기간', '날짜', '기간', 'timestamp')).trim();
+          const title = String(getSheetValue(row, '작업/공사명', '작업 / 공사명', '작업명', '공사명', 'title') || '').trim();
+          const contractor = String(getSheetValue(row, '담당자 / 업체', '담당자/업체', '담당자', '업체', 'worker') || '미지정').trim();
+          const fileUrl = String(getSheetValue(row, '첨부파일', 'fileUrl', 'link') || '').trim();
           
-          // 중복 방지를 위한 키 생성
-          const constKey = `${org}-${date}-${title}-${contractor}`;
+          // 중복 방지를 위한 키 생성 (모든 필드 트림 및 소문자화로 더 강력하게 체크)
+          const constKey = `${org}-${date}-${title}-${contractor}`.toLowerCase().replace(/\s+/g, '');
           if (seenConst.has(constKey)) return;
           seenConst.add(constKey);
 
@@ -270,6 +263,61 @@ const App: React.FC = () => {
               contractor,
               fileUrl,
               status: 'completed'
+            });
+          }
+        });
+      }
+
+      let landscapingMap: Record<string, any[]> = {};
+      if (landscapingData && Array.isArray(landscapingData)) {
+        const seenLand = new Set();
+        landscapingData.forEach((row: any) => {
+          const org = String(getSheetValue(row, '대상 시설', '대상시설', '시설명', '시설', 'org') || '').trim();
+          const date = formatDateToKST(getSheetValue(row, '날짜 / 기간', '날짜/기간', '날짜', '기간', 'timestamp')).trim();
+          const title = String(getSheetValue(row, '작업/공사명', '작업 / 공사명', '작업명', '공사명', 'title') || '').trim();
+          const worker = String(getSheetValue(row, '담당자 / 업체', '담당자/업체', '담당자', '업체', 'worker') || '미지정').trim();
+          const fileUrl = String(getSheetValue(row, '첨부파일', 'fileUrl', 'link') || '').trim();
+          
+          const landKey = `${org}-${date}-${title}-${worker}`.toLowerCase().replace(/\s+/g, '');
+          if (seenLand.has(landKey)) return;
+          seenLand.add(landKey);
+
+          if (org) {
+            if (!landscapingMap[org]) landscapingMap[org] = [];
+            landscapingMap[org].push({
+              id: `land-${Date.now()}-${Math.random()}`,
+              date,
+              title,
+              worker,
+              fileUrl
+            });
+          }
+        });
+      }
+
+      let waterQualityMap: Record<string, any[]> = {};
+      if (waterData && Array.isArray(waterData)) {
+        waterData.forEach((row: any) => {
+          const org = String(getSheetValue(row, '대상 시설', '대상시설', '시설명', '시설', 'org') || '').trim();
+          const date = formatDateToKST(getSheetValue(row, '날짜', 'timestamp'));
+          const ph = Number(getSheetValue(row, 'pH') || 0);
+          const chlorine = Number(getSheetValue(row, '잔류염소') || 0);
+          const turbidity = Number(getSheetValue(row, '탁도') || 0);
+          const temperature = Number(getSheetValue(row, '수온') || 0);
+          const worker = String(getSheetValue(row, '담당자', 'worker') || '미지정');
+          const fileUrl = String(getSheetValue(row, '첨부파일', 'fileUrl', 'link') || '');
+
+          if (org) {
+            if (!waterQualityMap[org]) waterQualityMap[org] = [];
+            waterQualityMap[org].push({
+              id: `water-${Date.now()}-${Math.random()}`,
+              date,
+              ph,
+              chlorine,
+              turbidity,
+              temperature,
+              worker,
+              fileUrl
             });
           }
         });
@@ -297,6 +345,8 @@ const App: React.FC = () => {
               status: FacilityStatus.NORMAL,
               history: historyMap[facilityName] || [],
               construction: constructionMap[facilityName] || [],
+              landscaping: landscapingMap[facilityName] || [],
+              waterQualityLogs: waterQualityMap[facilityName] || [],
               documents: [],
               buildingInfo: {
                 structure: getSheetValue(row, 'structure', '구조'),
@@ -319,7 +369,6 @@ const App: React.FC = () => {
                 parkingCapacity: String(getSheetValue(row, 'parkingCapacity', '주차대수') || ''),
                 photoUrl: String(getSheetValue(row, 'photoUrl', '사진', '사진URL') || '')
               },
-              landscaping: ['교정 수목 전정', '화단 잡초 제거'],
               waterQuality: {
                 ph: 7.2,
                 chlorine: 0.5,
@@ -332,6 +381,10 @@ const App: React.FC = () => {
           .filter((f): f is Hotspot => f !== null && !!f.name);
         
         setFacilities(mergedFacilities);
+      }
+
+      if (landscapingPlanData && Array.isArray(landscapingPlanData)) {
+        setLandscapingPlans(landscapingPlanData);
       }
     } catch (error) {
       console.error("❌ 데이터 새로고침 실패:", error);
@@ -460,6 +513,52 @@ const App: React.FC = () => {
     }
   };
 
+  const handleAddLandscaping = async (data: { org: string; date: string; title: string; contractor: string; file?: { name: string; type: string; data: string } }) => {
+    try {
+      const result = await ApiService.submitData({
+        org: data.org,
+        category: 'LANDSCAPING',
+        title: data.title,
+        value: {
+          date: data.date,
+          contractor: data.contractor,
+          fileName: data.file?.name,
+          fileType: data.file?.type,
+          fileData: data.file?.data
+        }
+      });
+      if (result.success) {
+        alert('조경 관리 실적이 성공적으로 저장되었습니다.');
+        refreshDataFromSheets();
+      } else {
+        alert('저장 중 오류가 발생했습니다.');
+      }
+    } catch (error) {
+      console.error("Add landscaping error:", error);
+      alert('서버 통신 중 오류가 발생했습니다.');
+    }
+  };
+
+  const handleAddLog = async (category: string, data: any) => {
+    try {
+      const result = await ApiService.submitData({
+        org: data.org,
+        category: category,
+        title: data.title || `${category} Record`,
+        value: data
+      });
+      if (result.success) {
+        alert('기록이 성공적으로 저장되었습니다.');
+        refreshDataFromSheets();
+      } else {
+        alert('저장 중 오류가 발생했습니다.');
+      }
+    } catch (error) {
+      console.error(`Add ${category} error:`, error);
+      alert('서버 통신 중 오류가 발생했습니다.');
+    }
+  };
+
   const renderContent = () => {
     switch (activeTab) {
       case 'home': return <Dashboard facilities={facilities} contacts={contacts} notices={notices} onNoticeClick={(n) => setSelectedNotice(n)} onAction={(tab) => setActiveTab(tab)} />;
@@ -501,8 +600,8 @@ const App: React.FC = () => {
       case 'building': return <BuildingManager facilities={facilities} onRefresh={refreshDataFromSheets} adminRole={isAdminMode ? adminOrg : null} />;
       case 'equipment': return <EquipmentManager equipment={rawEquipment} onRefresh={refreshDataFromSheets} />;
       case 'vehicle': return <VehicleManager vehicles={rawVehicles} onRefresh={refreshDataFromSheets} />;
-      case 'landscaping': return <LandscapingView facilities={facilities} />;
-      case 'water': return <WaterQualityView facilities={facilities} equipment={rawEquipment} />;
+      case 'landscaping': return <LandscapingView facilities={facilities} plans={landscapingPlans} onRefresh={refreshDataFromSheets} onAdd={handleAddLandscaping} />;
+      case 'water': return <WaterQualityView facilities={facilities} equipment={rawEquipment} onAddLog={handleAddLog} />;
       case 'construction': return <HistoryTable title="공사 및 대수선 관리 실적" type="construction" facilities={facilities} onAdd={handleAddConstruction} />;
       case 'admin': return (
         <div className="space-y-8 animate-in fade-in duration-700">

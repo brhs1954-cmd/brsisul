@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { FileSpreadsheet, ExternalLink, RefreshCw, CheckCircle2, ShieldCheck, AlertCircle } from 'lucide-react';
 import { GOOGLE_SHEET_API_URL } from '../data';
 import { ApiService } from '../api';
+import { formatTimestampToKST } from '../lib/dateUtils';
 
 const GoogleSheetsIntegration: React.FC = () => {
   const [isSyncing, setIsSyncing] = useState(false);
@@ -16,7 +17,7 @@ const GoogleSheetsIntegration: React.FC = () => {
     const data = await ApiService.fetchData();
     
     if (data) {
-      setLastSync(new Date().toLocaleString());
+      setLastSync(formatTimestampToKST(new Date()));
     } else {
       setSyncError(true);
     }

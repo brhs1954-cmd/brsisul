@@ -22,9 +22,10 @@ import HistoryTable from './HistoryTable';
 interface WaterQualityViewProps {
   facilities: Hotspot[];
   equipment: Equipment[];
+  onAddLog: (category: string, data: any) => Promise<void>;
 }
 
-const WaterQualityView: React.FC<WaterQualityViewProps> = ({ facilities, equipment }) => {
+const WaterQualityView: React.FC<WaterQualityViewProps> = ({ facilities, equipment, onAddLog }) => {
   const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
 
   // 설비 중 '저수조'가 포함된 항목만 필터링
@@ -41,6 +42,21 @@ const WaterQualityView: React.FC<WaterQualityViewProps> = ({ facilities, equipme
       if (match) return `https://lh3.googleusercontent.com/d/${match[0]}`;
     }
     return url;
+  };
+
+  const handleAddWaterLog = async (data: any) => {
+    await onAddLog('WATER_QUALITY', {
+      org: data.org,
+      date: data.date,
+      ph: data.ph,
+      chlorine: data.chlorine,
+      turbidity: data.turbidity,
+      temperature: data.temperature,
+      worker: data.contractor,
+      fileData: data.file?.data,
+      fileName: data.file?.name,
+      fileType: data.file?.type
+    });
   };
 
   return (
@@ -86,12 +102,23 @@ const WaterQualityView: React.FC<WaterQualityViewProps> = ({ facilities, equipme
         {waterTanks.length > 0 ? (
           waterTanks.map((tank, index) => {
             const displayImageUrl = getImageUrl(tank.photoUrl);
-            // 시뮬레이션된 수질 데이터 (실제 시트에 데이터가 생기면 매핑 가능)
-            const simulatedMetrics = {
-              ph: 7.2 + (Math.random() * 0.4 - 0.2),
-              chlorine: 0.6 + (Math.random() * 0.2 - 0.1),
-              turbidity: 0.08 + (Math.random() * 0.04),
-              temperature: 18.5 + (Math.random() * 2),
+            
+            // 해당 시설의 최신 수질 데이터 찾기
+            const facility = facilities.find(f => f.name === tank.orgName);
+            const latestLog = facility?.waterQualityLogs?.[0]; // App.tsx에서 이미 최신순 정렬됨
+
+            const metrics = latestLog ? {
+              ph: latestLog.ph,
+              chlorine: latestLog.chlorine,
+              turbidity: latestLog.turbidity,
+              temperature: latestLog.temperature,
+              date: latestLog.date
+            } : {
+              ph: 7.2,
+              chlorine: 0.6,
+              turbidity: 0.08,
+              temperature: 18.5,
+              date: '데이터 없음'
             };
 
             return (
@@ -103,7 +130,7 @@ const WaterQualityView: React.FC<WaterQualityViewProps> = ({ facilities, equipme
                       <span className="px-2 py-0.5 bg-blue-600 text-[9px] font-black rounded uppercase">Active Asset</span>
                     </div>
                     <p className="text-[10px] text-slate-400 flex items-center mt-1 font-bold">
-                      <Clock className="w-3 h-3 mr-1" /> 최종 점검: {tank.installDate || '일자 미상'}
+                      <Clock className="w-3 h-3 mr-1" /> 최종 측정: {metrics.date}
                     </p>
                   </div>
                   <div className="p-3 bg-blue-600/20 rounded-2xl border border-blue-500/30">
@@ -151,21 +178,21 @@ const WaterQualityView: React.FC<WaterQualityViewProps> = ({ facilities, equipme
                       <div className="space-y-2">
                         <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">pH Level</p>
                         <div className="flex items-end justify-between">
-                          <span className="text-2xl font-black text-slate-800 tracking-tighter">{simulatedMetrics.ph.toFixed(1)}</span>
+                          <span className="text-2xl font-black text-slate-800 tracking-tighter">{metrics.ph.toFixed(1)}</span>
                           <span className="text-[10px] font-black text-emerald-500 uppercase">Excellent</span>
                         </div>
                         <div className="h-2 bg-slate-100 rounded-full overflow-hidden shadow-inner">
-                          <div className="h-full bg-blue-500 rounded-full" style={{ width: `${(simulatedMetrics.ph / 14) * 100}%` }}></div>
+                          <div className="h-full bg-blue-500 rounded-full" style={{ width: `${(metrics.ph / 14) * 100}%` }}></div>
                         </div>
                       </div>
                       <div className="space-y-2">
                         <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Temperature</p>
                         <div className="flex items-end justify-between">
-                          <span className="text-2xl font-black text-slate-800 tracking-tighter">{simulatedMetrics.temperature.toFixed(1)}°</span>
+                          <span className="text-2xl font-black text-slate-800 tracking-tighter">{metrics.temperature.toFixed(1)}°</span>
                           <span className="text-[10px] font-black text-slate-400 uppercase">Optimal</span>
                         </div>
                         <div className="h-2 bg-slate-100 rounded-full overflow-hidden shadow-inner">
-                          <div className="h-full bg-rose-400 rounded-full" style={{ width: `${(simulatedMetrics.temperature / 40) * 100}%` }}></div>
+                          <div className="h-full bg-rose-400 rounded-full" style={{ width: `${(metrics.temperature / 40) * 100}%` }}></div>
                         </div>
                       </div>
                     </div>
@@ -176,14 +203,14 @@ const WaterQualityView: React.FC<WaterQualityViewProps> = ({ facilities, equipme
                            <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 mr-2 shadow-sm"></div>
                            <span className="text-xs font-black text-slate-700">잔류염소 (Chlorine)</span>
                          </div>
-                         <span className="text-sm font-black text-slate-900">{simulatedMetrics.chlorine.toFixed(2)} <span className="text-[9px] text-slate-400 ml-1 font-bold tracking-tight">mg/L</span></span>
+                         <span className="text-sm font-black text-slate-900">{metrics.chlorine.toFixed(2)} <span className="text-[9px] text-slate-400 ml-1 font-bold tracking-tight">mg/L</span></span>
                        </div>
                        <div className="flex items-center justify-between">
                          <div className="flex items-center">
                            <div className="w-2.5 h-2.5 rounded-full bg-blue-400 mr-2 shadow-sm"></div>
                            <span className="text-xs font-black text-slate-700">탁도 (Turbidity)</span>
                          </div>
-                         <span className="text-sm font-black text-slate-900">{simulatedMetrics.turbidity.toFixed(3)} <span className="text-[9px] text-slate-400 ml-1 font-bold tracking-tight">NTU</span></span>
+                         <span className="text-sm font-black text-slate-900">{metrics.turbidity.toFixed(3)} <span className="text-[9px] text-slate-400 ml-1 font-bold tracking-tight">NTU</span></span>
                        </div>
                     </div>
 
@@ -227,8 +254,9 @@ const WaterQualityView: React.FC<WaterQualityViewProps> = ({ facilities, equipme
       <section className="pt-8">
         <HistoryTable 
           title="저수조 점검 및 청소 이력" 
-          type="maintenance" 
+          type="water_quality" 
           facilities={facilities} 
+          onAdd={handleAddWaterLog}
         />
       </section>
 

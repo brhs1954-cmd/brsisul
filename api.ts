@@ -171,5 +171,20 @@ export const ApiService = {
       console.error('Equipment position update error:', error);
       return { success: false };
     }
+  },
+
+  async updateLandscapingPlan(plans: any[]) {
+    try {
+      const response = await fetch(GOOGLE_SHEET_API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ action: 'UPDATE_LANDSCAPING_PLAN', plans }),
+      });
+      const result = await response.json();
+      return { success: result.result === 'success' };
+    } catch (error) {
+      console.error('Landscaping plan update error:', error);
+      return { success: false };
+    }
   }
 };
