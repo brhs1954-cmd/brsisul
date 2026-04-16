@@ -493,6 +493,7 @@ const WaterQualityView: React.FC<WaterQualityViewProps> = ({ facilities, equipme
                     type="file" 
                     ref={fileInputRef} 
                     className="hidden" 
+                    accept="image/*,application/pdf"
                     onChange={handleFileChange}
                   />
                   {newRecord.file ? (

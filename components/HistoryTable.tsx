@@ -389,6 +389,7 @@ const HistoryTable: React.FC<HistoryTableProps> = ({ title, type, facilities, on
                     type="file" 
                     ref={fileInputRef} 
                     className="hidden" 
+                    accept="image/*,application/pdf"
                     onChange={handleFileChange}
                   />
                   {newRecord.file ? (

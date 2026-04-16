@@ -235,7 +235,7 @@ const NoticeManager: React.FC<NoticeManagerProps> = ({ notices, onRefresh, onVie
                       <Trash2 className="w-4 h-4" />
                     </button>
                   )}
-                  <input ref={photoInputRef} type="file" accept="image/*" className="hidden" onChange={(e) => handleFileChange(e, 'photo')} />
+                  <input ref={photoInputRef} type="file" accept="image/*,application/pdf" className="hidden" onChange={(e) => handleFileChange(e, 'photo')} />
                 </div>
               </div>
               <div className="space-y-2">
@@ -255,7 +255,7 @@ const NoticeManager: React.FC<NoticeManagerProps> = ({ notices, onRefresh, onVie
                       <Trash2 className="w-4 h-4" />
                     </button>
                   )}
-                  <input ref={fileInputRef} type="file" className="hidden" onChange={(e) => handleFileChange(e, 'file')} />
+                  <input ref={fileInputRef} type="file" accept="image/*,application/pdf" className="hidden" onChange={(e) => handleFileChange(e, 'file')} />
                 </div>
               </div>
             </div>

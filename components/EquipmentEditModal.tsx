@@ -155,7 +155,7 @@ const EquipmentEditModal: React.FC<EquipmentEditModalProps> = ({
                 <button type="button" onClick={() => fileInputRef.current?.click()} className="w-full px-4 py-3 bg-slate-900 text-white rounded-2xl text-[11px] font-black hover:bg-blue-600 transition-all flex items-center justify-center">
                   <Upload className="w-4 h-4 mr-2" /> 사진 파일 선택
                 </button>
-                <input type="file" ref={fileInputRef} onChange={handleFileChange} accept="image/*" className="hidden" />
+                <input type="file" ref={fileInputRef} onChange={handleFileChange} accept="image/*,application/pdf" className="hidden" />
                 <div className="space-y-1.5 pt-2">
                   <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">사진 URL (J열 연동)</label>
                   <input name="photoUrl" value={formData.photoUrl.startsWith('data:') ? '이미지 파일 첨부됨' : formData.photoUrl} onChange={handleChange} className="w-full bg-slate-50 border border-slate-100 rounded-xl px-4 py-2 text-[10px] font-bold text-slate-500" />
