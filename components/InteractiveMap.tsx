@@ -329,8 +329,14 @@ const InteractiveMap: React.FC<InteractiveMapProps> = ({
           <div
             key={`eq-${eq.id}-${idx}`}
             className={`absolute group transform -translate-x-1/2 -translate-y-1/2 transition-all duration-75 z-40 ${draggingItem?.id === eq.id ? 'scale-150 z-50' : ''}`}
-            style={{ left: `${eq.x || 0}%`, top: `${eq.y || 0}%` }}
+            style={{ left: `${eq.x || 50}%`, top: `${eq.y || 50}%` }}
           >
+            {/* Hover Label */}
+            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-slate-900/90 text-white text-[9px] font-black rounded-lg opacity-0 group-hover:opacity-100 whitespace-nowrap pointer-events-none transition-all transform translate-y-1 group-hover:translate-y-0 shadow-xl z-[60]">
+              {eq.name}
+              <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-slate-900/90"></div>
+            </div>
+
             <button
               onMouseDown={(e) => handleMouseDown(e, eq.id, 'equipment')}
               onClick={() => !isEditMode && onEquipmentClick(eq)}

@@ -156,23 +156,30 @@ const App: React.FC = () => {
       }
 
       if (equipmentData && Array.isArray(equipmentData)) {
-        currentEqList = equipmentData.map((row: any) => ({
-          id: String(getSheetValue(row, 'id') || '').trim(),
-          name: String(getSheetValue(row, '설비명') || '').trim(),
-          location: String(getSheetValue(row, '설비위치') || '').trim(),
-          orgName: String(getSheetValue(row, '관리주체') || '').trim(),
-          installDate: formatDateToKST(getSheetValue(row, '설치일')),
-          specs: String(getSheetValue(row, '주요제원') || '').trim(),
-          cycle: String(getSheetValue(row, '관리주기') || '').trim(),
-          manualUrl: String(getSheetValue(row, '관리메뉴얼') || '').trim(),
-          photoUrl: String(getSheetValue(row, '사진') || '').trim(),
-          asCompany: String(getSheetValue(row, 'As업체') || '').trim(),
-          asTel: String(getSheetValue(row, '전화번호') || '').trim(),
-          status: 'RUNNING',
-          remarks: String(getSheetValue(row, '비고') || '').trim(),
-          x: parseFloat(getSheetValue(row, 'coordX', 'x') || '0'),
-          y: parseFloat(getSheetValue(row, 'coordY', 'y') || '0'),
-        } as Equipment)).filter(eq => eq.name);
+        currentEqList = equipmentData.map((row: any, index: number) => {
+          const id = String(getSheetValue(row, 'id') || '').trim();
+          const xVal = getSheetValue(row, 'coordX', 'x');
+          const yVal = getSheetValue(row, 'coordY', 'y');
+          
+          return {
+            id: id || `EQ-NEW-${index}`,
+            name: String(getSheetValue(row, '설비명') || '').trim(),
+            location: String(getSheetValue(row, '설비위치') || '').trim(),
+            orgName: String(getSheetValue(row, '관리주체') || '').trim(),
+            installDate: formatDateToKST(getSheetValue(row, '설치일')),
+            specs: String(getSheetValue(row, '주요제원') || '').trim(),
+            cycle: String(getSheetValue(row, '관리주기') || '').trim(),
+            manualUrl: String(getSheetValue(row, '관리메뉴얼') || '').trim(),
+            photoUrl: String(getSheetValue(row, '사진') || '').trim(),
+            asCompany: String(getSheetValue(row, 'As업체') || '').trim(),
+            asTel: String(getSheetValue(row, '전화번호') || '').trim(),
+            status: 'RUNNING',
+            remarks: String(getSheetValue(row, '비고') || '').trim(),
+            // 좌표가 없거나 0인 경우 중앙(50, 50)에 배치하여 사용자가 찾기 쉽게 함
+            x: (xVal !== undefined && xVal !== null && xVal !== "") ? parseFloat(xVal) : 50,
+            y: (yVal !== undefined && yVal !== null && yVal !== "") ? parseFloat(yVal) : 50,
+          } as Equipment;
+        }).filter(eq => eq.name);
         setRawEquipment(currentEqList);
       }
 
