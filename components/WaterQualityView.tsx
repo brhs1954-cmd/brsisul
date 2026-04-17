@@ -45,13 +45,15 @@ const WaterQualityView: React.FC<WaterQualityViewProps> = ({ facilities, equipme
   const [isManualAddOpen, setIsManualAddOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [newRecord, setNewRecord] = useState<any>({ 
+    recordType: 'measurement', // 'measurement' or 'cleaning'
     org: '', 
     date: getCurrentKSTDateString(), 
     ph: '',
     chlorine: '',
     turbidity: '',
     temperature: '',
-    worker: ''
+    worker: '',
+    remarks: ''
   });
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
@@ -64,11 +66,12 @@ const WaterQualityView: React.FC<WaterQualityViewProps> = ({ facilities, equipme
     }
   };
 
-  const openAddModal = (org?: string) => {
+  const openAddModal = (org?: string, type: 'measurement' | 'cleaning' = 'measurement') => {
     setNewRecord({
       ...newRecord,
       org: org || '',
-      date: getCurrentKSTDateString()
+      date: getCurrentKSTDateString(),
+      recordType: type
     });
     setIsManualAddOpen(true);
   };
@@ -104,8 +107,20 @@ const WaterQualityView: React.FC<WaterQualityViewProps> = ({ facilities, equipme
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newRecord.org || !newRecord.ph || !newRecord.chlorine) {
-      alert('필수 항목을 입력해주세요.');
+    if (!newRecord.org) {
+      alert('저수조를 선택해주세요.');
+      return;
+    }
+
+    // 측정 기록인 경우 필수 항목 체크
+    if (newRecord.recordType === 'measurement' && (!newRecord.ph || !newRecord.chlorine)) {
+      alert('pH와 잔류염소 측정값을 입력해주세요.');
+      return;
+    }
+
+    // 청소 기록인 경우 내용 체크
+    if (newRecord.recordType === 'cleaning' && !newRecord.remarks) {
+      alert('청소 내용을 입력해주세요.');
       return;
     }
 
@@ -114,16 +129,18 @@ const WaterQualityView: React.FC<WaterQualityViewProps> = ({ facilities, equipme
       await handleAddWaterLog(newRecord);
       setIsManualAddOpen(false);
       setNewRecord({ 
+        recordType: 'measurement',
         org: '', 
         date: getCurrentKSTDateString(), 
         ph: '',
         chlorine: '',
         turbidity: '',
         temperature: '',
-        worker: ''
+        worker: '',
+        remarks: ''
       });
       await onRefresh();
-      alert('수질 측정 기록이 저장되었습니다.');
+      alert(`${newRecord.recordType === 'measurement' ? '수질 측정' : '청소'} 기록이 저장되었습니다.`);
     } catch (error) {
       alert('저장 중 오류가 발생했습니다.');
     } finally {
@@ -156,6 +173,7 @@ const WaterQualityView: React.FC<WaterQualityViewProps> = ({ facilities, equipme
       turbidity: data.turbidity,
       temperature: data.temperature,
       worker: data.worker,
+      remarks: data.remarks,
       fileData: data.file?.data,
       fileName: data.file?.name,
       fileType: data.file?.type
@@ -352,17 +370,16 @@ const WaterQualityView: React.FC<WaterQualityViewProps> = ({ facilities, equipme
 
                     <div className="pt-2 flex gap-2">
                        <button 
-                         onClick={() => openAddModal(tank.name)}
-                         className="flex-1 py-3 bg-slate-900 text-white rounded-2xl text-[11px] font-black transition-all hover:bg-blue-600 shadow-lg shadow-slate-200 flex items-center justify-center"
+                         onClick={() => openAddModal(tank.name, 'measurement')}
+                         className="flex-1 py-3 bg-blue-600 text-white rounded-2xl text-[11px] font-black transition-all hover:bg-blue-700 shadow-lg shadow-blue-100 flex items-center justify-center border border-blue-500"
                        >
-                         <ClipboardList className="w-4 h-4 mr-2" /> 정기 검사 작성
+                         <Activity className="w-3.5 h-3.5 mr-1.5" /> 측정 기록
                        </button>
                        <button 
-                         onClick={handleRefresh}
-                         disabled={isRefreshing}
-                         className="p-3 bg-slate-100 text-slate-500 rounded-2xl hover:bg-slate-200 transition-all disabled:opacity-50"
+                         onClick={() => openAddModal(tank.name, 'cleaning')}
+                         className="flex-1 py-3 bg-slate-900 text-white rounded-2xl text-[11px] font-black transition-all hover:bg-slate-800 shadow-lg shadow-slate-200 flex items-center justify-center"
                        >
-                         <RefreshCcw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+                         <CheckCircle2 className="w-3.5 h-3.5 mr-1.5" /> 청소 기록
                        </button>
                     </div>
                   </div>
@@ -412,12 +429,31 @@ const WaterQualityView: React.FC<WaterQualityViewProps> = ({ facilities, equipme
         <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
             <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
-              <h3 className="text-lg font-black text-slate-900">수질 측정 기록 추가</h3>
+              <h3 className="text-lg font-black text-slate-900">
+                {newRecord.recordType === 'measurement' ? '수질 측정 기록 추가' : '저수조 청소 기록 추가'}
+              </h3>
               <button onClick={() => setIsManualAddOpen(false)} className="p-2 hover:bg-slate-200 rounded-full transition-colors">
                 <X className="w-5 h-5 text-slate-500" />
               </button>
             </div>
             <form onSubmit={handleSubmit} className="p-6 space-y-4">
+              <div className="flex bg-slate-100 p-1.5 rounded-2xl mb-2">
+                <button
+                  type="button"
+                  onClick={() => setNewRecord({...newRecord, recordType: 'measurement'})}
+                  className={`flex-1 py-2 text-[11px] font-black rounded-xl transition-all ${newRecord.recordType === 'measurement' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
+                >
+                  수질 측정
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setNewRecord({...newRecord, recordType: 'cleaning'})}
+                  className={`flex-1 py-2 text-[11px] font-black rounded-xl transition-all ${newRecord.recordType === 'cleaning' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-500 hover:text-slate-700'}`}
+                >
+                  청소 이력
+                </button>
+              </div>
+
               <div className="space-y-1.5">
                 <label className="text-xs font-black text-slate-500 ml-1">저수조 명</label>
                 <select 
@@ -442,48 +478,61 @@ const WaterQualityView: React.FC<WaterQualityViewProps> = ({ facilities, equipme
                   required
                 />
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              {newRecord.recordType === 'measurement' ? (
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-black text-slate-500 ml-1">pH (수소이온)</label>
+                    <input 
+                      type="number" step="0.1" placeholder="7.0"
+                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:ring-2 focus:ring-blue-500 transition-all"
+                      value={newRecord.ph}
+                      onChange={(e) => setNewRecord({...newRecord, ph: e.target.value})}
+                      required
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-black text-slate-500 ml-1">잔류염소 (mg/L)</label>
+                    <input 
+                      type="number" step="0.01" placeholder="0.5"
+                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:ring-2 focus:ring-blue-500 transition-all"
+                      value={newRecord.chlorine}
+                      onChange={(e) => setNewRecord({...newRecord, chlorine: e.target.value})}
+                      required
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-black text-slate-500 ml-1">탁도 (NTU)</label>
+                    <input 
+                      type="number" step="0.001" placeholder="0.05"
+                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:ring-2 focus:ring-blue-500 transition-all"
+                      value={newRecord.turbidity}
+                      onChange={(e) => setNewRecord({...newRecord, turbidity: e.target.value})}
+                      required
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-black text-slate-500 ml-1">수온 (°C)</label>
+                    <input 
+                      type="number" step="0.1" placeholder="15.0"
+                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:ring-2 focus:ring-blue-500 transition-all"
+                      value={newRecord.temperature}
+                      onChange={(e) => setNewRecord({...newRecord, temperature: e.target.value})}
+                      required
+                    />
+                  </div>
+                </div>
+              ) : (
                 <div className="space-y-1.5">
-                  <label className="text-xs font-black text-slate-500 ml-1">pH (수소이온)</label>
-                  <input 
-                    type="number" step="0.1" placeholder="7.0"
-                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:ring-2 focus:ring-blue-500 transition-all"
-                    value={newRecord.ph}
-                    onChange={(e) => setNewRecord({...newRecord, ph: e.target.value})}
+                  <label className="text-xs font-black text-slate-500 ml-1">청소 내용 / 비고</label>
+                  <textarea 
+                    placeholder="저수조 청소 작업 및 특이사항을 입력하세요"
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:ring-2 focus:ring-blue-500 transition-all h-24 resize-none"
+                    value={newRecord.remarks}
+                    onChange={(e) => setNewRecord({...newRecord, remarks: e.target.value})}
                     required
                   />
                 </div>
-                <div className="space-y-1.5">
-                  <label className="text-xs font-black text-slate-500 ml-1">잔류염소 (mg/L)</label>
-                  <input 
-                    type="number" step="0.01" placeholder="0.5"
-                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:ring-2 focus:ring-blue-500 transition-all"
-                    value={newRecord.chlorine}
-                    onChange={(e) => setNewRecord({...newRecord, chlorine: e.target.value})}
-                    required
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-xs font-black text-slate-500 ml-1">탁도 (NTU)</label>
-                  <input 
-                    type="number" step="0.001" placeholder="0.05"
-                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:ring-2 focus:ring-blue-500 transition-all"
-                    value={newRecord.turbidity}
-                    onChange={(e) => setNewRecord({...newRecord, turbidity: e.target.value})}
-                    required
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-xs font-black text-slate-500 ml-1">수온 (°C)</label>
-                  <input 
-                    type="number" step="0.1" placeholder="15.0"
-                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:ring-2 focus:ring-blue-500 transition-all"
-                    value={newRecord.temperature}
-                    onChange={(e) => setNewRecord({...newRecord, temperature: e.target.value})}
-                    required
-                  />
-                </div>
-              </div>
+              )}
               <div className="space-y-1.5">
                 <label className="text-xs font-black text-slate-500 ml-1">측정자</label>
                 <input 

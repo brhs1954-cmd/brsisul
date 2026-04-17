@@ -25,6 +25,7 @@ const HistoryTable: React.FC<HistoryTableProps> = ({ title, type, facilities, on
   const [searchTerm, setSearchTerm] = useState('');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [newRecord, setNewRecord] = useState<any>({ 
+    recordType: 'measurement',
     org: '', 
     date: getCurrentKSTDateString(), 
     title: '', 
@@ -33,7 +34,8 @@ const HistoryTable: React.FC<HistoryTableProps> = ({ title, type, facilities, on
     ph: '',
     chlorine: '',
     turbidity: '',
-    temperature: ''
+    temperature: '',
+    remarks: ''
   });
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -80,14 +82,14 @@ const HistoryTable: React.FC<HistoryTableProps> = ({ title, type, facilities, on
     const headers = [
       '날짜', 
       type === 'water_quality' ? '저수조 명' : '대상 시설', 
-      type === 'water_quality' ? '수질 측정값' : '작업/공사명', 
-      type === 'water_quality' ? '측정자' : '담당자/업체'
+      type === 'water_quality' ? '내용/측정값' : '작업/공사명', 
+      type === 'water_quality' ? '담당자' : '담당자/업체'
     ];
     const rows = filteredRecords.map((r: any) => [
       r.date || r.period,
       r.facilityName,
       type === 'water_quality' 
-        ? `pH:${r.ph}, Cl:${r.chlorine}, Turb:${r.turbidity}, Temp:${r.temperature}`
+        ? (r.remarks || `pH:${r.ph}, Cl:${r.chlorine}, Turb:${r.turbidity}, Temp:${r.temperature}`)
         : (r.description || r.title),
       r.worker || r.contractor
     ]);
@@ -150,6 +152,7 @@ const HistoryTable: React.FC<HistoryTableProps> = ({ title, type, facilities, on
     onAdd?.(newRecord);
     setIsAddModalOpen(false);
     setNewRecord({ 
+      recordType: 'measurement',
       org: '', 
       date: getCurrentKSTDateString(), 
       title: '', 
@@ -158,7 +161,8 @@ const HistoryTable: React.FC<HistoryTableProps> = ({ title, type, facilities, on
       ph: '',
       chlorine: '',
       turbidity: '',
-      temperature: ''
+      temperature: '',
+      remarks: ''
     });
   };
 
@@ -208,7 +212,7 @@ const HistoryTable: React.FC<HistoryTableProps> = ({ title, type, facilities, on
                   {type === 'water_quality' ? '저수조 명' : '대상 시설'}
                 </th>
                 <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                  {type === 'water_quality' ? '수질 측정값' : '작업/공사명'}
+                  {type === 'water_quality' ? '내용 / 측정값' : '작업/공사명'}
                 </th>
                 <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">담당자 / 업체</th>
                 <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">첨부파일</th>
@@ -232,11 +236,14 @@ const HistoryTable: React.FC<HistoryTableProps> = ({ title, type, facilities, on
                   <td className="px-6 py-4">
                     <div className="text-sm font-bold text-slate-800">
                       {type === 'water_quality' ? (
-                        <div className="flex gap-2 text-[10px]">
-                          <span className="bg-blue-50 px-1.5 py-0.5 rounded">pH: {record.ph}</span>
-                          <span className="bg-emerald-50 px-1.5 py-0.5 rounded">Cl: {record.chlorine}</span>
-                          <span className="bg-amber-50 px-1.5 py-0.5 rounded">Turb: {record.turbidity}</span>
-                          <span className="bg-rose-50 px-1.5 py-0.5 rounded">Temp: {record.temperature}°</span>
+                        <div className="space-y-1">
+                          {record.remarks && <div className="text-blue-600 mb-1">{record.remarks}</div>}
+                          <div className="flex gap-2 text-[10px]">
+                            <span className="bg-blue-50 px-1.5 py-0.5 rounded border border-blue-100 italic">pH: {record.ph}</span>
+                            <span className="bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-100 italic">Cl: {record.chlorine}</span>
+                            <span className="bg-amber-50 px-1.5 py-0.5 rounded border border-amber-100 italic">Turb: {record.turbidity}</span>
+                            <span className="bg-rose-50 px-1.5 py-0.5 rounded border border-rose-100 italic">Temp: {record.temperature}°</span>
+                          </div>
                         </div>
                       ) : (
                         record.description || record.title
@@ -300,6 +307,24 @@ const HistoryTable: React.FC<HistoryTableProps> = ({ title, type, facilities, on
               </button>
             </div>
             <form onSubmit={handleSubmit} className="p-6 space-y-4">
+              {type === 'water_quality' && (
+                <div className="flex bg-slate-100 p-1.5 rounded-2xl mb-2">
+                  <button
+                    type="button"
+                    onClick={() => setNewRecord({...newRecord, recordType: 'measurement'})}
+                    className={`flex-1 py-2 text-[11px] font-black rounded-xl transition-all ${newRecord.recordType === 'measurement' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
+                  >
+                    수질 측정
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setNewRecord({...newRecord, recordType: 'cleaning'})}
+                    className={`flex-1 py-2 text-[11px] font-black rounded-xl transition-all ${newRecord.recordType === 'cleaning' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-500 hover:text-slate-700'}`}
+                  >
+                    청소 이력
+                  </button>
+                </div>
+              )}
               <div className="space-y-1.5">
                 <label className="text-xs font-black text-slate-500 ml-1">
                   {type === 'water_quality' ? '저수조 명' : '대상 시설'}
@@ -327,50 +352,66 @@ const HistoryTable: React.FC<HistoryTableProps> = ({ title, type, facilities, on
                   required
                 />
               </div>
-              {type === 'water_quality' ? (
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-black text-slate-500 ml-1">pH (수소이온)</label>
-                    <input 
-                      type="number" step="0.1" placeholder="7.0"
-                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:ring-2 focus:ring-blue-500 transition-all"
-                      value={newRecord.ph}
-                      onChange={(e) => setNewRecord({...newRecord, ph: e.target.value})}
-                      required
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-black text-slate-500 ml-1">잔류염소 (mg/L)</label>
-                    <input 
-                      type="number" step="0.01" placeholder="0.5"
-                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:ring-2 focus:ring-blue-500 transition-all"
-                      value={newRecord.chlorine}
-                      onChange={(e) => setNewRecord({...newRecord, chlorine: e.target.value})}
-                      required
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-black text-slate-500 ml-1">탁도 (NTU)</label>
-                    <input 
-                      type="number" step="0.001" placeholder="0.05"
-                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:ring-2 focus:ring-blue-500 transition-all"
-                      value={newRecord.turbidity}
-                      onChange={(e) => setNewRecord({...newRecord, turbidity: e.target.value})}
-                      required
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-black text-slate-500 ml-1">수온 (°C)</label>
-                    <input 
-                      type="number" step="0.1" placeholder="15.0"
-                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:ring-2 focus:ring-blue-500 transition-all"
-                      value={newRecord.temperature}
-                      onChange={(e) => setNewRecord({...newRecord, temperature: e.target.value})}
-                      required
-                    />
-                  </div>
-                </div>
-              ) : (
+              {type === 'water_quality' && (
+                <>
+                  {newRecord.recordType === 'measurement' ? (
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-black text-slate-500 ml-1">pH (수소이온)</label>
+                        <input 
+                          type="number" step="0.1" placeholder="7.0"
+                          className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:ring-2 focus:ring-blue-500 transition-all"
+                          value={newRecord.ph}
+                          onChange={(e) => setNewRecord({...newRecord, ph: e.target.value})}
+                          required
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-black text-slate-500 ml-1">잔류염소 (mg/L)</label>
+                        <input 
+                          type="number" step="0.01" placeholder="0.5"
+                          className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:ring-2 focus:ring-blue-500 transition-all"
+                          value={newRecord.chlorine}
+                          onChange={(e) => setNewRecord({...newRecord, chlorine: e.target.value})}
+                          required
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-black text-slate-500 ml-1">탁도 (NTU)</label>
+                        <input 
+                          type="number" step="0.001" placeholder="0.05"
+                          className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:ring-2 focus:ring-blue-500 transition-all"
+                          value={newRecord.turbidity}
+                          onChange={(e) => setNewRecord({...newRecord, turbidity: e.target.value})}
+                          required
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-black text-slate-500 ml-1">수온 (°C)</label>
+                        <input 
+                          type="number" step="0.1" placeholder="15.0"
+                          className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:ring-2 focus:ring-blue-500 transition-all"
+                          value={newRecord.temperature}
+                          onChange={(e) => setNewRecord({...newRecord, temperature: e.target.value})}
+                          required
+                        />
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-black text-slate-500 ml-1">청소 내용 / 비고</label>
+                      <textarea 
+                        placeholder="청소 내역을 입력하세요"
+                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:ring-2 focus:ring-blue-500 transition-all h-24 resize-none"
+                        value={newRecord.remarks}
+                        onChange={(e) => setNewRecord({...newRecord, remarks: e.target.value})}
+                        required
+                      />
+                    </div>
+                  )}
+                </>
+              )}
+              {type !== 'water_quality' && (
                 <div className="space-y-1.5">
                   <label className="text-xs font-black text-slate-500 ml-1">작업/공사명</label>
                   <input 

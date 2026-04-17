@@ -326,9 +326,10 @@ const App: React.FC = () => {
           const turbidity = Number(getSheetValue(row, '탁도', 'turbidity', 'Turbidity') || 0);
           const temperature = Number(getSheetValue(row, '수온', 'temperature', 'Temperature', '온도') || 0);
           const worker = String(getSheetValue(row, '담당자', 'worker') || '미지정').trim();
+          const remarks = String(getSheetValue(row, '비고/청소내용', '비고', '청소내용', 'remarks') || '').trim();
           const fileUrl = String(getSheetValue(row, '첨부파일', 'fileUrl', 'link', 'attachment', 'attachmentUrl', 'drive') || '').trim();
 
-          const waterKey = `${tankName}-${date}-${ph}-${chlorine}-${turbidity}-${temperature}-${worker}`.toLowerCase().replace(/\s+/g, '');
+          const waterKey = `${tankName}-${date}-${ph}-${chlorine}-${turbidity}-${temperature}-${worker}-${remarks}`.toLowerCase().replace(/\s+/g, '');
           if (seenWater.has(waterKey)) return;
           seenWater.add(waterKey);
 
@@ -351,6 +352,7 @@ const App: React.FC = () => {
               turbidity,
               temperature,
               worker,
+              remarks,
               fileUrl
             });
           }

@@ -227,7 +227,7 @@ function doPost(e) {
     let headings = ["timestamp", "org", "category", "title", "value"];
     if (params.category === "CONSTRUCTION") { logSheetName = "공사관리"; headings = ["대상 시설", "날짜 / 기간", "작업/공사명", "담당자 / 업체", "첨부파일", "timestamp"]; }
     else if (params.category === "LANDSCAPING") { logSheetName = "조경관리"; headings = ["대상 시설", "날짜 / 기간", "작업/공사명", "담당자 / 업체", "첨부파일", "timestamp"]; }
-    else if (params.category === "WATER_QUALITY") { logSheetName = "수질관리"; headings = ["저수조 명", "날짜", "pH", "잔류염소", "탁도", "수온", "담당자", "첨부파일", "timestamp"]; }
+    else if (params.category === "WATER_QUALITY") { logSheetName = "수질관리"; headings = ["저수조 명", "날짜", "pH", "잔류염소", "탁도", "수온", "담당자", "비고/청소내용", "첨부파일", "timestamp"]; }
     
     let logSheet = ss.getSheetByName(logSheetName);
     if (!logSheet) { logSheet = ss.insertSheet(logSheetName); logSheet.appendRow(headings); }
@@ -235,7 +235,7 @@ function doPost(e) {
     if (params.category === "CONSTRUCTION" || params.category === "LANDSCAPING") {
       logSheet.appendRow([params.org, val.date || "", params.title || "", val.contractor || "", fileUrl, Utilities.formatDate(new Date(), "GMT+9", "yyyy-MM-dd HH:mm:ss")]);
     } else if (params.category === "WATER_QUALITY") {
-      logSheet.appendRow([params.org, val.date || "", val.ph || "", val.chlorine || "", val.turbidity || "", val.temperature || "", val.worker || "", fileUrl, Utilities.formatDate(new Date(), "GMT+9", "yyyy-MM-dd HH:mm:ss")]);
+      logSheet.appendRow([params.org, val.date || "", val.ph || "", val.chlorine || "", val.turbidity || "", val.temperature || "", val.worker || "", val.remarks || "", fileUrl, Utilities.formatDate(new Date(), "GMT+9", "yyyy-MM-dd HH:mm:ss")]);
     } else {
       logSheet.appendRow([Utilities.formatDate(new Date(), "GMT+9", "yyyy-MM-dd HH:mm:ss"), params.org, params.category, params.title, JSON.stringify(val)]);
     }
