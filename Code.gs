@@ -1,6 +1,8 @@
 
 /**
  * 보령학사 시설물 관리 시스템 백엔드 (GAS)
+ * @OnlyCurrentDoc
+ * DriveApp.getFiles() // Force Drive Scope detection
  */
 
 function doGet(e) {
