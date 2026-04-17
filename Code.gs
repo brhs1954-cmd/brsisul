@@ -1,13 +1,24 @@
 /**
  * 보령학사 시설물 관리 시스템 백엔드 (GAS)
- * 최전문가용 최종 수정판 - 드라이브 권한 강제 활성화
+ * 최종 승인 강제 실행 버전
  */
 
-// 이 함수는 절대로 삭제하지 마세요. 권한 승인용입니다.
+// [중요] 에디터 상단에서 이 함수를 선택하고 [▶ 실행]을 누르세요.
+// 이번에는 에러 메시지 대신 "승인 필요" 팝업이 확실히 뜹니다.
 function triggerAuthorization() {
-  DriveApp.getRootFolder();
-  SpreadsheetApp.getActiveSpreadsheet();
-  console.log("권한 승인 완료");
+  // 1. 드라이브 전체 권한 강제 요청
+  const root = DriveApp.getRootFolder();
+  const folders = DriveApp.getFolders();
+  
+  // 2. 파일 생성 권한 강제 요청 (이 줄이 승인창을 띄우는 핵심입니다)
+  const tempFile = DriveApp.createFile("권한인증용.txt", "승인 테스트");
+  tempFile.setTrashed(true);
+  
+  // 3. 시트 권한 강제 요청
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  ss.getName();
+  
+  Logger.log("인증 완료! 이제 모든 기능이 정상 작동합니다.");
 }
 
 function doGet(e) {
@@ -40,13 +51,11 @@ function doGet(e) {
   
   const lastRow = sheet.getLastRow();
   const lastCol = sheet.getLastColumn();
-  
   if (lastRow < 1) return ContentService.createTextOutput(JSON.stringify([])).setMimeType(ContentService.MimeType.JSON);
 
   const data = sheet.getRange(1, 1, lastRow, lastCol).getValues();
   const headers = data[0];
   const rows = data.slice(1);
-  
   const result = rows.map(row => {
     let obj = { "__raw": row };
     headers.forEach((header, i) => {
@@ -57,7 +66,6 @@ function doGet(e) {
     });
     return obj;
   });
-  
   return ContentService.createTextOutput(JSON.stringify(result)).setMimeType(ContentService.MimeType.JSON);
 }
 
@@ -69,43 +77,30 @@ function getOrCreateFolder(parent, name) {
 
 function uploadFile(fileData, fileName, fileType, orgName) {
   if (!fileData || !fileName || typeof fileData !== 'string') return "";
-  
   try {
-    // 0. 폴더 ID (사용자님이 제공하신 ID)
     const targetFolderId = "1zI3PIOGZ-PT04wOiNOi5A1Fupzh5_ZyP";
     let rootFolder;
-    
-    // 1. 타겟 폴더 접근 시도
     try {
       rootFolder = DriveApp.getFolderById(targetFolderId);
     } catch (e) {
-      console.warn("Folder ID access failed, trying root. Error: " + e.toString());
-      // 여기서 rootFolder를 명시적으로 호출 (권한 체크 포인트)
+      console.warn("Folder access failed, using root.");
       rootFolder = DriveApp.getRootFolder();
     }
     
-    // 2. 하위 폴더 생성
     const safeOrgName = (orgName || "기타").replace(/[\/\\:*?"<>|]/g, "_");
     const orgFolder = getOrCreateFolder(rootFolder, safeOrgName);
     
-    // 3. 사진 데이터 정리
     let base64Part = fileData;
-    if (fileData.indexOf(",") > -1) {
-      base64Part = fileData.split(",")[1];
-    }
-    base64Part = base64Part.replace(/\s/g, ""); // 공백 제거 필수
+    if (fileData.indexOf(",") > -1) base64Part = fileData.split(",")[1];
+    base64Part = base64Part.replace(/\s/g, ""); 
     
-    // 4. 드라이브에 저장
     const contentType = fileType || "application/octet-stream";
     const decodedFile = Utilities.base64Decode(base64Part);
     const blob = Utilities.newBlob(decodedFile, contentType, fileName);
     const file = orgFolder.createFile(blob);
     
-    // 5. 누구나 볼 수 있게 공유 설정
     file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
-    
     return file.getUrl();
-    
   } catch (err) {
     console.error("UPLOAD ERROR: " + err.toString());
     return "저장 실패: " + err.toString();
@@ -134,10 +129,10 @@ function doPost(e) {
   if (action === "DELETE_PATH") {
     const data = targetSheet.getDataRange().getValues();
     for (let i = 1; i < data.length; i++) {
-      if (String(data[i][0]).trim() === String(params.id).trim()) {
-        targetSheet.deleteRow(i + 1);
-        break;
-      }
+        if (String(data[i][0]).trim() === String(params.id).trim()) {
+            targetSheet.deleteRow(i + 1);
+            break;
+        }
     }
     return ContentService.createTextOutput(JSON.stringify({result: "success"})).setMimeType(ContentService.MimeType.JSON);
   }
@@ -148,10 +143,10 @@ function doPost(e) {
     const colPoints = headers.indexOf("points") + 1;
     const idToUpdate = String(params.id).trim();
     for (let i = 1; i < data.length; i++) {
-      if (String(data[i][0]).trim() === idToUpdate && colPoints > 0) {
-        targetSheet.getRange(i + 1, colPoints).setValue(JSON.stringify(params.points));
-        return ContentService.createTextOutput(JSON.stringify({result: "success"})).setMimeType(ContentService.MimeType.JSON);
-      }
+        if (String(data[i][0]).trim() === idToUpdate && colPoints > 0) {
+            targetSheet.getRange(i + 1, colPoints).setValue(JSON.stringify(params.points));
+            return ContentService.createTextOutput(JSON.stringify({result: "success"})).setMimeType(ContentService.MimeType.JSON);
+        }
     }
   }
 
@@ -175,10 +170,10 @@ function doPost(e) {
     const data = targetSheet.getDataRange().getValues();
     const idToDelete = String(params.id).trim();
     for (let i = 1; i < data.length; i++) {
-      if (String(data[i][0]).trim() === idToDelete) {
-        targetSheet.deleteRow(i + 1);
-        break;
-      }
+        if (String(data[i][0]).trim() === idToDelete) {
+            targetSheet.deleteRow(i + 1);
+            break;
+        }
     }
     return ContentService.createTextOutput(JSON.stringify({result: "success"})).setMimeType(ContentService.MimeType.JSON);
   }
@@ -209,7 +204,6 @@ function doPost(e) {
   }
   
   let updateMap = {};
-
   if (action === "UPDATE_POSITION" || action === "UPDATE_EQUIPMENT_POSITION") {
     updateMap = {"coordX": params.coordX, "coordY": params.coordY, "x": params.coordX, "y": params.coordY};
   } else if (action === "UPDATE_BUILDING") {
