@@ -338,10 +338,10 @@ const NoticeManager: React.FC<NoticeManagerProps> = ({ notices, onRefresh, onVie
                         <div className="flex items-center justify-end gap-2">
                           <button 
                             onClick={() => onViewNotice(notice)}
-                            className="p-2 text-slate-300 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
-                            title="내용 보기"
+                            className="inline-flex items-center px-3 py-1.5 bg-slate-100 text-slate-500 rounded-xl hover:bg-blue-600 hover:text-white transition-all shadow-sm font-black text-[10px]"
+                            title="공지 상세 내용 보기"
                           >
-                            <Eye className="w-4 h-4" />
+                            <Eye className="w-3.5 h-3.5 mr-1.5" /> 상세보기
                           </button>
                           <button 
                             onClick={() => handleDelete(notice.id)}

@@ -1,7 +1,7 @@
 
 import React, { useState, useRef, useMemo } from 'react';
 import { Hotspot } from '../types';
-import { Search, Filter, Download, MoreVertical, Calendar, User, Tag, Plus, X, Paperclip, ExternalLink } from 'lucide-react';
+import { Search, Filter, Download, MoreVertical, Calendar, User, Tag, Plus, X, Paperclip, ExternalLink, Eye, MapPin, HardHat, Droplets, Activity, Thermometer } from 'lucide-react';
 import { getCurrentKSTDateString } from '../lib/dateUtils';
 import { compressImage } from '../lib/imageUtils';
 
@@ -9,6 +9,7 @@ interface HistoryTableProps {
   title: string;
   type: 'maintenance' | 'landscaping' | 'construction' | 'water_quality';
   facilities: Hotspot[];
+  records?: any[]; // 추가: 로그 데이터를 직접 전달받을 수 있도록 함
   onAdd?: (data: any) => void;
   targetOptions?: string[];
 }
@@ -21,7 +22,7 @@ const ORDERED_ORG_NAMES = [
   '충남서부 장애인종합복지관'
 ];
 
-const HistoryTable: React.FC<HistoryTableProps> = ({ title, type, facilities, onAdd, targetOptions }) => {
+const HistoryTable: React.FC<HistoryTableProps> = ({ title, type, facilities, records: propRecords, onAdd, targetOptions }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [newRecord, setNewRecord] = useState<any>({ 
@@ -37,6 +38,7 @@ const HistoryTable: React.FC<HistoryTableProps> = ({ title, type, facilities, on
     temperature: '',
     remarks: ''
   });
+  const [selectedRecord, setSelectedRecord] = useState<any>(null);
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -48,6 +50,25 @@ const HistoryTable: React.FC<HistoryTableProps> = ({ title, type, facilities, on
   });
 
   const allRecords = useMemo(() => {
+    // 1. 만약 prop으로 records가 전달되었다면 그것을 우선 사용
+    if (propRecords && propRecords.length > 0) {
+      const mappedPropRecords = propRecords.map(r => ({
+        ...r,
+        facilityName: r.facilityName || r.tankName || r.org || '기타'
+      }));
+      
+      const seen = new Set();
+      return mappedPropRecords.filter(r => {
+        const key = `${r.id}-${r.facilityName}-${r.date || r.period}-${r.description || r.title || r.remarks || ''}`
+          .toLowerCase()
+          .replace(/\s+/g, '');
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+    }
+
+    // 2. 전달된 records가 없으면 기존 방식(facilities 순회) 사용
     const records = sortedFacilities.flatMap<any>(f => {
       if (type === 'construction') {
         return f.construction.map(c => ({ ...c, facilityName: f.name }));
@@ -63,7 +84,7 @@ const HistoryTable: React.FC<HistoryTableProps> = ({ title, type, facilities, on
     // 중복 제거 (대상시설, 날짜, 내용, 담당자가 모두 같은 경우)
     const seen = new Set();
     return records.filter(r => {
-      const key = `${r.facilityName}-${r.date || r.period}-${r.description || r.title}-${r.worker || r.contractor}`
+      const key = `${r.facilityName}-${r.date || r.period}-${r.description || r.title || r.remarks || ''}-${r.worker || r.contractor}`
         .toLowerCase()
         .replace(/\s+/g, '');
       if (seen.has(key)) return false;
@@ -75,6 +96,7 @@ const HistoryTable: React.FC<HistoryTableProps> = ({ title, type, facilities, on
   const filteredRecords = allRecords.filter((r: any) => 
     (r.facilityName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
     (r.description || r.title || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (r.remarks || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
     (r.worker || r.contractor || '').toLowerCase().includes(searchTerm.toLowerCase())
   );
 
@@ -207,14 +229,18 @@ const HistoryTable: React.FC<HistoryTableProps> = ({ title, type, facilities, on
           <table className="w-full text-left border-collapse min-w-[600px]">
             <thead>
               <tr className="bg-slate-50/50">
-                <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">날짜 / 기간</th>
+                <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                  {type === 'water_quality' ? '점검 날짜' : '날짜 / 기간'}
+                </th>
                 <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
                   {type === 'water_quality' ? '저수조 명' : '대상 시설'}
                 </th>
                 <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                  {type === 'water_quality' ? '내용 / 측정값' : '작업/공사명'}
+                  {type === 'water_quality' ? '측정값 / 점검내용' : '작업/공사명'}
                 </th>
-                <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">담당자 / 업체</th>
+                <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                  {type === 'water_quality' ? '담당자' : '담당자 / 업체'}
+                </th>
                 <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">첨부파일</th>
                 <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-right">상세</th>
               </tr>
@@ -237,13 +263,15 @@ const HistoryTable: React.FC<HistoryTableProps> = ({ title, type, facilities, on
                     <div className="text-sm font-bold text-slate-800">
                       {type === 'water_quality' ? (
                         <div className="space-y-1">
-                          {record.remarks && <div className="text-blue-600 mb-1">{record.remarks}</div>}
-                          <div className="flex gap-2 text-[10px]">
-                            <span className="bg-blue-50 px-1.5 py-0.5 rounded border border-blue-100 italic">pH: {record.ph}</span>
-                            <span className="bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-100 italic">Cl: {record.chlorine}</span>
-                            <span className="bg-amber-50 px-1.5 py-0.5 rounded border border-amber-100 italic">Turb: {record.turbidity}</span>
-                            <span className="bg-rose-50 px-1.5 py-0.5 rounded border border-rose-100 italic">Temp: {record.temperature}°</span>
-                          </div>
+                          {record.remarks && <div className="text-slate-900 font-bold mb-1">{record.remarks}</div>}
+                          {(!record.remarks || record.ph) && (
+                            <div className="flex flex-wrap gap-2 text-[10px]">
+                              <span className="bg-blue-50 px-1.5 py-0.5 rounded border border-blue-100 font-bold text-blue-600">pH {record.ph}</span>
+                              <span className="bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-100 font-bold text-emerald-600">Cl {record.chlorine}</span>
+                              <span className="bg-amber-50 px-1.5 py-0.5 rounded border border-amber-100 font-bold text-amber-600">Turb {record.turbidity}</span>
+                              <span className="bg-rose-50 px-1.5 py-0.5 rounded border border-rose-100 font-bold text-rose-600">{record.temperature}°C</span>
+                            </div>
+                          )}
                         </div>
                       ) : (
                         record.description || record.title
@@ -258,24 +286,37 @@ const HistoryTable: React.FC<HistoryTableProps> = ({ title, type, facilities, on
                   </td>
                   <td className="px-6 py-4">
                     {(() => {
-                      const link = record.fileUrl || record.attachedFile || record.첨부파일;
-                      return link && String(link).startsWith('http') ? (
+                      const link = record.fileUrl || record.attachedFile || record.첨부파일 || record.drive || record.file;
+                      // URL이 비고란에 밀려 들어간 경우를 대비하여 추가 체크
+                      const altLink = (record.remarks && String(record.remarks).startsWith('http')) ? record.remarks : null;
+                      const finalLink = (link && String(link).startsWith('http')) ? link : altLink;
+                      
+                      return finalLink ? (
                         <a 
-                          href={String(link)} 
+                          href={String(finalLink)} 
                           target="_blank" 
                           rel="noopener noreferrer"
-                          className="inline-flex items-center px-2 py-1 bg-blue-50 text-[10px] font-bold text-blue-600 rounded-md hover:bg-blue-100 transition-colors border border-blue-100"
+                          className="inline-flex items-center px-2.5 py-1.5 bg-blue-50 text-[10px] font-black text-blue-600 rounded-xl hover:bg-blue-100 transition-all border border-blue-100 shadow-sm"
+                          onClick={(e) => e.stopPropagation()}
                         >
-                          <ExternalLink className="w-3 h-3 mr-1" /> 파일 보기
+                          <Paperclip className="w-3 h-3 mr-1.5" /> 파일
                         </a>
                       ) : (
-                        <span className="text-slate-300 text-[11px]">-</span>
+                        <span className="text-slate-300 text-[11px] font-medium">-</span>
                       );
                     })()}
                   </td>
                   <td className="px-6 py-4 text-right">
-                    <button className="p-2 hover:bg-slate-200 rounded-lg text-slate-400 group-hover:text-slate-600 transition-colors">
-                      <MoreVertical className="w-4 h-4" />
+                    <button 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedRecord(record);
+                        console.log("Record selected for detail view:", record);
+                      }}
+                      className="inline-flex items-center px-3 py-1.5 bg-slate-100 text-slate-500 rounded-xl hover:bg-blue-600 hover:text-white transition-all shadow-sm font-black text-[10px]"
+                      title="상세 정보 보기"
+                    >
+                      <Eye className="w-3.5 h-3.5 mr-1.5" /> 상세보기
                     </button>
                   </td>
                 </tr>
@@ -476,6 +517,158 @@ const HistoryTable: React.FC<HistoryTableProps> = ({ title, type, facilities, on
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+      {/* Detail Modal */}
+      {selectedRecord && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-in fade-in duration-300">
+          <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-2xl overflow-hidden animate-in zoom-in-95 duration-300 flex flex-col max-h-[90vh]">
+            <div className="p-8 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+              <div>
+                <span className="px-3 py-1 bg-blue-600 text-[10px] font-black text-white rounded-full uppercase tracking-widest mb-2 inline-block">
+                  {type === 'water_quality' ? '수질/청소 상세내역' : '관리 실적 상세'}
+                </span>
+                <h3 className="text-2xl font-black text-slate-900 leading-tight">
+                  {selectedRecord.remarks ? '저수조 청소 및 점검' : (selectedRecord.description || selectedRecord.title || '상세 정보')}
+                </h3>
+              </div>
+              <button 
+                onClick={() => setSelectedRecord(null)} 
+                className="p-3 bg-white border border-slate-200 text-slate-500 rounded-2xl hover:bg-slate-50 transition-all shadow-sm"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+            
+            <div className="p-8 overflow-y-auto custom-scrollbar flex-1 space-y-8">
+              {/* Main Info Grid */}
+              <div className="grid grid-cols-2 gap-6">
+                <div className="space-y-1.5 p-5 bg-slate-50 rounded-2xl border border-slate-100">
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center">
+                    <Calendar className="w-3.5 h-3.5 mr-1.5" /> 날짜 / 기간
+                  </p>
+                  <p className="text-base font-black text-slate-800">{selectedRecord.date || selectedRecord.period}</p>
+                </div>
+                <div className="space-y-1.5 p-5 bg-slate-50 rounded-2xl border border-slate-100">
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center">
+                    <MapPin className="w-3.5 h-3.5 mr-1.5" /> {type === 'water_quality' ? '저수조 명' : '대상 시설'}
+                  </p>
+                  <p className="text-base font-black text-slate-800">{selectedRecord.facilityName}</p>
+                </div>
+                <div className="space-y-1.5 p-5 bg-slate-50 rounded-2xl border border-slate-100">
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center">
+                    <User className="w-3.5 h-3.5 mr-1.5" /> 담당자 / 업체
+                  </p>
+                  <p className="text-base font-black text-slate-800">{selectedRecord.worker || selectedRecord.contractor || '미지정'}</p>
+                </div>
+                <div className="space-y-1.5 p-5 bg-blue-50/50 rounded-2xl border border-blue-100">
+                  <p className="text-[10px] font-black text-blue-400 uppercase tracking-widest flex items-center">
+                    <HardHat className="w-3.5 h-3.5 mr-1.5" /> 관리 유형
+                  </p>
+                  <p className="text-base font-black text-blue-700">
+                    {type === 'water_quality' ? (selectedRecord.remarks ? '저수조 청소' : '수질 검사') : 
+                     type === 'construction' ? '시설 공사' : 
+                     type === 'landscaping' ? '조경 관리' : '일반 점검'}
+                  </p>
+                </div>
+              </div>
+
+              {/* Specific Details Section */}
+              {type === 'water_quality' && (
+                <div className="space-y-6">
+                  {selectedRecord.remarks && (
+                    <div className="p-6 bg-slate-900 text-white rounded-[2rem] shadow-xl">
+                       <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">청소 및 비고 내용</p>
+                       <p className="text-base font-bold leading-relaxed">{selectedRecord.remarks}</p>
+                    </div>
+                  )}
+                  
+                  <div className="grid grid-cols-4 gap-4 pt-2">
+                    {[
+                      { label: 'pH', value: selectedRecord.ph, color: 'text-blue-500', icon: <Droplets className="w-4 h-4" /> },
+                      { label: '잔류염소', value: selectedRecord.chlorine, unit: 'mg/L', color: 'text-emerald-500', icon: <Droplets className="w-4 h-4" /> },
+                      { label: '탁도', value: selectedRecord.turbidity, unit: 'NTU', color: 'text-amber-500', icon: <Activity className="w-4 h-4" /> },
+                      { label: '수온', value: selectedRecord.temperature, unit: '°C', color: 'text-rose-500', icon: <Thermometer className="w-4 h-4" /> },
+                    ].map((m, i) => (
+                      <div key={i} className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
+                        <div className="flex items-center mb-1 text-slate-400">
+                          {m.icon}
+                          <span className="ml-1 text-[8px] font-black uppercase tracking-tighter">{m.label}</span>
+                        </div>
+                        <p className={`text-lg font-black ${m.color}`}>
+                          {m.value}
+                          {m.unit && <span className="text-[10px] ml-0.5 opacity-60 font-bold">{m.unit}</span>}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Image Preview / Attachment */}
+              {(() => {
+                const link = selectedRecord.fileUrl || selectedRecord.attachedFile || selectedRecord.첨부파일 || selectedRecord.drive || (selectedRecord.remarks?.startsWith('http') ? selectedRecord.remarks : null);
+                const isImage = link && (String(link).toLowerCase().match(/\.(jpg|jpeg|png|webp|gif|avif)/) || String(link).includes('lh3.googleusercontent.com'));
+                
+                return link ? (
+                  <div className="space-y-4">
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">증빙 자료 및 첨부파일</p>
+                    {isImage ? (
+                      <div className="relative rounded-[2.5rem] overflow-hidden border border-slate-200 bg-slate-100 group/zoom shadow-inner">
+                        <img 
+                          src={String(link).includes('drive.google.com') ? `https://lh3.googleusercontent.com/d/${String(link).match(/[-\w]{25,}/)?.[0]}` : String(link)} 
+                          alt="첨부 이미지"
+                          className="w-full max-h-[300px] object-contain"
+                          referrerPolicy="no-referrer"
+                        />
+                        <a 
+                          href={String(link)} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="absolute bottom-4 right-4 px-5 py-3 bg-white/90 backdrop-blur shadow-xl rounded-2xl text-xs font-black text-slate-900 flex items-center hover:bg-white transition-all border border-slate-100"
+                        >
+                          <ExternalLink className="w-4 h-4 mr-2" /> 전체 화면
+                        </a>
+                      </div>
+                    ) : (
+                      <a 
+                        href={String(link)} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="flex items-center p-6 bg-slate-50 border-2 border-dashed border-slate-200 rounded-[2rem] hover:bg-white transition-all group"
+                      >
+                        <div className="w-12 h-12 bg-blue-100 rounded-2xl flex items-center justify-center text-blue-600 mr-4 group-hover:scale-110 transition-transform">
+                          <Paperclip className="w-6 h-6" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-black text-slate-900">첨부 문서 보기</p>
+                          <p className="text-xs text-slate-400 font-bold">크게 보려면 클릭하여 새 창으로 열기</p>
+                        </div>
+                        <ExternalLink className="w-5 h-5 ml-auto text-slate-300" />
+                      </a>
+                    )}
+                  </div>
+                ) : null;
+              })()}
+            </div>
+            
+            <div className="p-8 bg-slate-50 border-t border-slate-100 flex gap-4">
+              <button 
+                onClick={() => setSelectedRecord(null)}
+                className="flex-1 px-8 py-4 bg-white border border-slate-200 text-slate-600 rounded-2xl font-black text-sm hover:bg-slate-100 transition-all shadow-sm"
+              >
+                닫기
+              </button>
+              <button 
+                onClick={() => {
+                  window.print();
+                }}
+                className="flex-1 px-8 py-4 bg-slate-900 text-white rounded-2xl font-black text-sm hover:bg-slate-800 transition-all shadow-xl shadow-slate-200 flex items-center justify-center"
+              >
+                <Download className="w-4 h-4 mr-2" /> PDF/인쇄 저장
+              </button>
+            </div>
           </div>
         </div>
       )}

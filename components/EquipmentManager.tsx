@@ -19,16 +19,18 @@ import {
   Edit3,
   Maximize2,
   X,
-  PlusCircle
+  PlusCircle,
+  Eye
 } from 'lucide-react';
 import EquipmentEditModal from './EquipmentEditModal';
 
 interface EquipmentManagerProps {
   equipment: Equipment[];
   onRefresh: () => Promise<void>;
+  onViewDetail?: (equipment: Equipment) => void;
 }
 
-const EquipmentManager: React.FC<EquipmentManagerProps> = ({ equipment, onRefresh }) => {
+const EquipmentManager: React.FC<EquipmentManagerProps> = ({ equipment, onRefresh, onViewDetail }) => {
   const [isSyncing, setIsSyncing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [editingEq, setEditingEq] = useState<Equipment | null>(null);
@@ -205,6 +207,13 @@ const EquipmentManager: React.FC<EquipmentManagerProps> = ({ equipment, onRefres
                       </td>
                       <td className="px-8 py-6 text-right">
                         <div className="flex items-center justify-end space-x-2">
+                          <button 
+                            onClick={() => onViewDetail?.(eq)}
+                            className="inline-flex items-center px-3 py-1.5 bg-slate-100 text-slate-500 rounded-xl hover:bg-blue-600 hover:text-white transition-all shadow-sm font-black text-[10px]"
+                            title="설비 상세 정보 보기"
+                          >
+                            <Eye className="w-3.5 h-3.5 mr-1.5" /> 상세보기
+                          </button>
                           <button 
                             onClick={() => setEditingEq(eq)}
                             className="p-2.5 bg-slate-100 text-slate-500 hover:bg-amber-100 hover:text-amber-600 rounded-xl transition-all shadow-sm"

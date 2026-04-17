@@ -8,11 +8,12 @@ import { ApiService } from '../api';
 interface LandscapingViewProps {
   facilities: Hotspot[];
   plans: any[];
+  logs?: any[]; 
   onRefresh: () => Promise<void>;
   onAdd: (data: { org: string; date: string; title: string; contractor: string; file?: { name: string; type: string; data: string } }) => void;
 }
 
-const LandscapingView: React.FC<LandscapingViewProps> = ({ facilities, plans, onRefresh, onAdd }) => {
+const LandscapingView: React.FC<LandscapingViewProps> = ({ facilities, plans, logs = [], onRefresh, onAdd }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [editedPlans, setEditedPlans] = useState<any[]>([]);
@@ -160,6 +161,7 @@ const LandscapingView: React.FC<LandscapingViewProps> = ({ facilities, plans, on
           title="조경 및 수목 관리 실적 현황" 
           type="landscaping" 
           facilities={facilities} 
+          records={logs}
           onAdd={onAdd}
         />
       </section>

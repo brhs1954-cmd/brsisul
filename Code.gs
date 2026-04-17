@@ -225,20 +225,77 @@ function doPost(e) {
     const fileUrl = uploadFile(val.fileData || val.file?.data, val.fileName || val.file?.name, val.fileType || val.file?.type, params.org);
     let logSheetName = "log";
     let headings = ["timestamp", "org", "category", "title", "value"];
-    if (params.category === "CONSTRUCTION") { logSheetName = "공사관리"; headings = ["대상 시설", "날짜 / 기간", "작업/공사명", "담당자 / 업체", "첨부파일", "timestamp"]; }
-    else if (params.category === "LANDSCAPING") { logSheetName = "조경관리"; headings = ["대상 시설", "날짜 / 기간", "작업/공사명", "담당자 / 업체", "첨부파일", "timestamp"]; }
-    else if (params.category === "WATER_QUALITY") { logSheetName = "수질관리"; headings = ["저수조 명", "날짜", "pH", "잔류염소", "탁도", "수온", "담당자", "비고/청소내용", "첨부파일", "timestamp"]; }
+    
+    // Define expected columns and data map based on category
+    let dataMap = {};
+    if (params.category === "CONSTRUCTION") {
+      logSheetName = "공사관리";
+      headings = ["대상 시설", "날짜 / 기간", "작업/공사명", "담당자 / 업체", "첨부파일", "timestamp"];
+      dataMap = {
+        "대상 시설": params.org,
+        "날짜 / 기간": val.date || "",
+        "작업/공사명": params.title || "",
+        "담당자 / 업체": val.contractor || "",
+        "첨부파일": fileUrl,
+        "timestamp": Utilities.formatDate(new Date(), "GMT+9", "yyyy-MM-dd HH:mm:ss")
+      };
+    } else if (params.category === "LANDSCAPING") {
+      logSheetName = "조경관리";
+      headings = ["대상 시설", "날짜 / 기간", "작업/공사명", "담당자 / 업체", "첨부파일", "timestamp"];
+      dataMap = {
+        "대상 시설": params.org,
+        "날짜 / 기간": val.date || "",
+        "작업/공사명": params.title || "",
+        "담당자 / 업체": val.contractor || "",
+        "첨부파일": fileUrl,
+        "timestamp": Utilities.formatDate(new Date(), "GMT+9", "yyyy-MM-dd HH:mm:ss")
+      };
+    } else if (params.category === "WATER_QUALITY") {
+      logSheetName = "수질관리";
+      headings = ["저수조 명", "날짜", "pH", "잔류염소", "탁도", "수온", "담당자", "비고/청소내용", "첨부파일", "timestamp"];
+      dataMap = {
+        "저수조 명": params.org,
+        "날짜": val.date || "",
+        "pH": val.ph || "",
+        "잔류염소": val.chlorine || "",
+        "탁도": val.turbidity || "",
+        "수온": val.temperature || "",
+        "담당자": val.worker || "",
+        "비고/청소내용": val.remarks || "",
+        "첨부파일": fileUrl,
+        "timestamp": Utilities.formatDate(new Date(), "GMT+9", "yyyy-MM-dd HH:mm:ss")
+      };
+    } else {
+      dataMap = {
+        "timestamp": Utilities.formatDate(new Date(), "GMT+9", "yyyy-MM-dd HH:mm:ss"),
+        "org": params.org,
+        "category": params.category,
+        "title": params.title,
+        "value": JSON.stringify(val)
+      };
+    }
     
     let logSheet = ss.getSheetByName(logSheetName);
-    if (!logSheet) { logSheet = ss.insertSheet(logSheetName); logSheet.appendRow(headings); }
-    
-    if (params.category === "CONSTRUCTION" || params.category === "LANDSCAPING") {
-      logSheet.appendRow([params.org, val.date || "", params.title || "", val.contractor || "", fileUrl, Utilities.formatDate(new Date(), "GMT+9", "yyyy-MM-dd HH:mm:ss")]);
-    } else if (params.category === "WATER_QUALITY") {
-      logSheet.appendRow([params.org, val.date || "", val.ph || "", val.chlorine || "", val.turbidity || "", val.temperature || "", val.worker || "", val.remarks || "", fileUrl, Utilities.formatDate(new Date(), "GMT+9", "yyyy-MM-dd HH:mm:ss")]);
-    } else {
-      logSheet.appendRow([Utilities.formatDate(new Date(), "GMT+9", "yyyy-MM-dd HH:mm:ss"), params.org, params.category, params.title, JSON.stringify(val)]);
+    if (!logSheet) {
+      logSheet = ss.insertSheet(logSheetName);
+      logSheet.appendRow(headings);
     }
+    
+    // Header Synchronization: Ensure all expected headers exist
+    let currentHeaders = logSheet.getRange(1, 1, 1, Math.max(1, logSheet.getLastColumn())).getValues()[0].map(h => String(h).trim());
+    let headersModified = false;
+    headings.forEach(h => {
+      if (h && currentHeaders.indexOf(h) === -1) {
+        logSheet.getRange(1, currentHeaders.length + 1).setValue(h);
+        currentHeaders.push(h);
+        headersModified = true;
+      }
+    });
+    
+    // Prepare row data based on ACTUAL headers in the sheet to prevent column shift
+    const rowData = currentHeaders.map(h => dataMap[h] !== undefined ? dataMap[h] : "");
+    logSheet.appendRow(rowData);
+    
     return ContentService.createTextOutput(JSON.stringify({result: "success"})).setMimeType(ContentService.MimeType.JSON);
   }
 

@@ -419,6 +419,7 @@ const WaterQualityView: React.FC<WaterQualityViewProps> = ({ facilities, equipme
           title="저수조 점검 및 청소 이력" 
           type="water_quality" 
           facilities={facilities} 
+          records={waterLogs}
           onAdd={handleAddWaterLog}
           targetOptions={waterTanks.map(t => t.name)}
         />

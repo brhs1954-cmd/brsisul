@@ -18,7 +18,8 @@ import {
   XCircle,
   MoreHorizontal,
   ExternalLink,
-  MapPin
+  MapPin,
+  Eye
 } from 'lucide-react';
 import BuildingEditModal from './BuildingEditModal';
 
@@ -26,9 +27,10 @@ interface BuildingManagerProps {
   facilities: Hotspot[];
   onRefresh: () => Promise<void>;
   adminRole: string | null; 
+  onViewDetail?: (facility: Hotspot) => void;
 }
 
-const BuildingManager: React.FC<BuildingManagerProps> = ({ facilities, onRefresh, adminRole }) => {
+const BuildingManager: React.FC<BuildingManagerProps> = ({ facilities, onRefresh, adminRole, onViewDetail }) => {
   const [isSyncing, setIsSyncing] = useState(false);
   const [editingBuilding, setEditingBuilding] = useState<Hotspot | null>(null);
   const [initialEditSection, setInitialEditSection] = useState<'basic' | 'detail'>('basic');
@@ -184,21 +186,21 @@ const BuildingManager: React.FC<BuildingManagerProps> = ({ facilities, onRefresh
                       {/* Actions */}
                       <td className="px-6 py-5 text-right">
                         <div className="flex items-center justify-end space-x-2">
+                          <button 
+                            onClick={() => onViewDetail?.(facility)}
+                            className="inline-flex items-center px-3 py-1.5 bg-slate-100 text-slate-500 rounded-xl hover:bg-blue-600 hover:text-white transition-all shadow-sm font-black text-[10px]"
+                            title="시설 상세 정보 보기"
+                          >
+                            <Eye className="w-3.5 h-3.5 mr-1.5" /> 상세보기
+                          </button>
                           {canEdit(facility.name) && (
                             <button 
                               onClick={() => handleOpenEdit(facility, 'basic')}
-                              className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all"
-                              title="제원 수정"
+                              className="flex items-center px-4 py-2 bg-slate-900 text-white rounded-xl text-[10px] font-black hover:bg-amber-600 transition-all shadow-lg"
                             >
-                              <Edit3 className="w-4 h-4" />
+                              수정 <Edit3 className="w-3 h-3 ml-1.5" />
                             </button>
                           )}
-                          <button 
-                            onClick={() => handleOpenEdit(facility, 'detail')}
-                            className="flex items-center px-4 py-2 bg-slate-900 text-white rounded-xl text-[10px] font-black hover:bg-blue-600 transition-all shadow-lg shadow-slate-200"
-                          >
-                            상세 <ArrowRight className="w-3 h-3 ml-1.5" />
-                          </button>
                         </div>
                       </td>
                     </tr>
