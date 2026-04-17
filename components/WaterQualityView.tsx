@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import HistoryTable from './HistoryTable';
 import { getCurrentKSTDateString } from '../lib/dateUtils';
+import { compressImage } from '../lib/imageUtils';
 
 interface WaterQualityViewProps {
   facilities: Hotspot[];
@@ -77,8 +78,18 @@ const WaterQualityView: React.FC<WaterQualityViewProps> = ({ facilities, equipme
     if (!file) return;
 
     const reader = new FileReader();
-    reader.onload = (event) => {
-      const base64 = event.target?.result as string;
+    reader.onload = async (event) => {
+      let base64 = event.target?.result as string;
+      
+      // 이미지 파일인 경우 압축 시도
+      if (file.type.startsWith('image/')) {
+        try {
+          base64 = await compressImage(base64);
+        } catch (error) {
+          console.error('Image compression failed:', error);
+        }
+      }
+
       setNewRecord({
         ...newRecord,
         file: {

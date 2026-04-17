@@ -17,6 +17,7 @@ import {
 import { Notice } from '../types';
 import { ApiService } from '../api';
 import { getCurrentKSTDateString } from '../lib/dateUtils';
+import { compressImage } from '../lib/imageUtils';
 
 interface NoticeManagerProps {
   notices: Notice[];
@@ -51,8 +52,17 @@ const NoticeManager: React.FC<NoticeManagerProps> = ({ notices, onRefresh, onVie
     if (!file) return;
 
     const reader = new FileReader();
-    reader.onloadend = () => {
-      const base64 = reader.result as string;
+    reader.onloadend = async () => {
+      let base64 = reader.result as string;
+      
+      if (type === 'photo' && file.type.startsWith('image/')) {
+        try {
+          base64 = await compressImage(base64);
+        } catch (error) {
+          console.error('Image compression failed:', error);
+        }
+      }
+
       if (type === 'photo') {
         setFormData(prev => ({ 
           ...prev, 

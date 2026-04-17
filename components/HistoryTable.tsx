@@ -3,6 +3,7 @@ import React, { useState, useRef, useMemo } from 'react';
 import { Hotspot } from '../types';
 import { Search, Filter, Download, MoreVertical, Calendar, User, Tag, Plus, X, Paperclip, ExternalLink } from 'lucide-react';
 import { getCurrentKSTDateString } from '../lib/dateUtils';
+import { compressImage } from '../lib/imageUtils';
 
 interface HistoryTableProps {
   title: string;
@@ -111,8 +112,18 @@ const HistoryTable: React.FC<HistoryTableProps> = ({ title, type, facilities, on
 
     setIsUploading(true);
     const reader = new FileReader();
-    reader.onload = (event) => {
-      const base64 = event.target?.result as string;
+    reader.onload = async (event) => {
+      let base64 = event.target?.result as string;
+      
+      // 이미지 파일인 경우 압축 시도
+      if (file.type.startsWith('image/')) {
+        try {
+          base64 = await compressImage(base64);
+        } catch (error) {
+          console.error('Image compression failed:', error);
+        }
+      }
+
       setNewRecord({
         ...newRecord,
         file: {

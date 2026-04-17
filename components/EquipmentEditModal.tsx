@@ -16,7 +16,7 @@ const EquipmentEditModal: React.FC<EquipmentEditModalProps> = ({
   onClose, 
   onSave 
 }) => {
-  const [formData, setFormData] = useState<Omit<Equipment, 'status'>>({
+  const [formData, setFormData] = useState<Omit<Equipment, 'status'> & { fileData?: string; fileName?: string; fileType?: string }>({
     id: '',
     name: '',
     location: '',
@@ -77,13 +77,20 @@ const EquipmentEditModal: React.FC<EquipmentEditModalProps> = ({
     if (file) {
       const reader = new FileReader();
       reader.onloadend = async () => {
+        let base64 = reader.result as string;
         try {
-          const compressed = await compressImage(reader.result as string);
-          setFormData(prev => ({ ...prev, photoUrl: compressed }));
+          const compressed = await compressImage(base64);
+          base64 = compressed;
         } catch (error) {
           console.error("Image compression failed:", error);
-          setFormData(prev => ({ ...prev, photoUrl: reader.result as string }));
         }
+        setFormData(prev => ({ 
+          ...prev, 
+          photoUrl: base64, // 미리보기 및 폴백용
+          fileData: base64, // GAS 전송용
+          fileName: file.name,
+          fileType: file.type
+        }));
       };
       reader.readAsDataURL(file);
     }

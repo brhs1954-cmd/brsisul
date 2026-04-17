@@ -589,7 +589,13 @@ const App: React.FC = () => {
         org: data.org,
         category: category,
         title: data.title || `${category} Record`,
-        value: data
+        value: {
+          ...data,
+          // 파일 정보가 있으면 명시적으로 추출하여 GAS에서 드라이브 저장 처리가 용이하도록 함
+          fileName: data.fileName || data.file?.name,
+          fileType: data.fileType || data.file?.type,
+          fileData: data.fileData || data.file?.data
+        }
       });
       if (result.success) {
         alert('기록이 성공적으로 저장되었습니다.');
