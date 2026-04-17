@@ -250,18 +250,21 @@ const HistoryTable: React.FC<HistoryTableProps> = ({ title, type, facilities, on
                     </div>
                   </td>
                   <td className="px-6 py-4">
-                    {record.fileUrl || record.첨부파일 ? (
-                      <a 
-                        href={record.fileUrl || record.첨부파일} 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center text-xs font-bold text-blue-600 hover:text-blue-800 transition-colors"
-                      >
-                        <ExternalLink className="w-3 h-3 mr-1" /> 보기
-                      </a>
-                    ) : (
-                      <span className="text-slate-300 text-xs">-</span>
-                    )}
+                    {(() => {
+                      const link = record.fileUrl || record.attachedFile || record.첨부파일;
+                      return link && String(link).startsWith('http') ? (
+                        <a 
+                          href={String(link)} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center px-2 py-1 bg-blue-50 text-[10px] font-bold text-blue-600 rounded-md hover:bg-blue-100 transition-colors border border-blue-100"
+                        >
+                          <ExternalLink className="w-3 h-3 mr-1" /> 파일 보기
+                        </a>
+                      ) : (
+                        <span className="text-slate-300 text-[11px]">-</span>
+                      );
+                    })()}
                   </td>
                   <td className="px-6 py-4 text-right">
                     <button className="p-2 hover:bg-slate-200 rounded-lg text-slate-400 group-hover:text-slate-600 transition-colors">

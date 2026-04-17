@@ -71,38 +71,61 @@ function getOrCreateFolder(parent, name) {
 }
 
 function uploadFile(fileData, fileName, fileType, orgName) {
-  if (!fileData || !fileName) return "";
+  if (!fileData || !fileName || typeof fileData !== 'string') {
+    console.error("Missing required file data for upload.");
+    return "";
+  }
+  
   try {
     const targetFolderId = "1zI3PIOGZ-PT04wOiNOi5A1Fupzh5_ZyP";
     let rootFolder;
+    
+    // 1. 루트 폴더 확보
     try {
-      rootFolder = DriveApp.getFolderById(targetFolderId);
+      if (targetFolderId && targetFolderId.trim() !== "") {
+        rootFolder = DriveApp.getFolderById(targetFolderId.trim());
+      } else {
+        rootFolder = DriveApp.getRootFolder();
+      }
     } catch (e) {
-      console.error("Root folder access error: " + e.toString());
-      // 폴더 접근 실패 시 기본 드라이브에 저장하거나 에러 반환
-      return "";
+      console.warn("Target folder ID not found or no access. Using Drive Root. Detail: " + e.toString());
+      rootFolder = DriveApp.getRootFolder();
     }
     
-    const orgFolder = getOrCreateFolder(rootFolder, orgName || "기타");
-    const contentType = fileType || "application/octet-stream";
+    // 2. 하위 폴더 확보
+    const safeOrgName = (orgName || "기타").replace(/[\/\\:*?"<>|]/g, "_");
+    const orgFolder = getOrCreateFolder(rootFolder, safeOrgName);
     
-    // Data URL 형식인 경우 헤더 제거
-    let base64Data = fileData;
+    // 3. Base64 데이터 정제
+    let base64Part = fileData;
     if (fileData.indexOf(",") > -1) {
-      base64Data = fileData.split(",")[1];
+      base64Part = fileData.split(",")[1];
     }
+    // 공백 및 줄바꿈 제거 (안정성 확보)
+    base64Part = base64Part.replace(/\s/g, "");
     
-    const decodedFile = Utilities.base64Decode(base64Data);
+    // 4. 파일 생성
+    const contentType = fileType || "application/octet-stream";
+    const decodedFile = Utilities.base64Decode(base64Part);
     const blob = Utilities.newBlob(decodedFile, contentType, fileName);
     const file = orgFolder.createFile(blob);
     
-    // 공유 권한 설정 (링크가 있는 모든 사용자에게 읽기 권한 부여)
-    file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+    // 5. 공유 설정
+    try {
+      file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+    } catch (sharingError) {
+      console.warn("Could not set sharing permissions: " + sharingError.toString());
+      // 권한 설정에 실패해도 파일 URL은 반환함
+    }
     
-    return file.getUrl();
+    const url = file.getUrl();
+    console.log("Success! File uploaded: " + url);
+    return url;
+    
   } catch (err) {
-    console.error("File upload error: " + err.toString());
-    return "";
+    console.error("CRITICAL UPLOAD ERROR: " + err.toString());
+    // 에러 발생 시 로그를 남기고 빈 대답 (시트 저장은 계속되게 함)
+    return "Upload Error: " + err.toString();
   }
 }
 
@@ -275,6 +298,13 @@ function doPost(e) {
     updateMap["y"] = params.coordY;
   } else if (action === "UPDATE_BUILDING") {
     const info = params.info || {};
+    
+    // 사진 업로드 처리
+    let photoUrl = info.photoUrl || "";
+    if (info.fileData && info.fileName) {
+      photoUrl = uploadFile(info.fileData, info.fileName, info.fileType, info.name || "건축물");
+    }
+
     updateMap = {
       "id": idToUpdate,
       "name": info.name, "이름": info.name, "시설명": info.name,
@@ -298,10 +328,17 @@ function doPost(e) {
       "floorPlanUrl": info.floorPlanUrl, "평면도링크": info.floorPlanUrl,
       "buildingLedgerUrl": info.buildingLedgerUrl, "건축물대장링크": info.buildingLedgerUrl,
       "registrationTranscriptUrl": info.registrationTranscriptUrl, "등기부등본링크": info.registrationTranscriptUrl,
-      "photoUrl": info.photoUrl, "사진": info.photoUrl, "사진URL": info.photoUrl
+      "photoUrl": photoUrl, "사진": photoUrl, "사진URL": photoUrl
     };
-  } else if (action === "UPDATE_EQUIPMENT") {
+  } else if (action === "UPDATE_EQUIPMENT" || action === "ADD_EQUIPMENT") {
     const info = params.info || {};
+    
+    // 사진 업로드 처리
+    let photoUrl = info.photoUrl || "";
+    if (info.fileData && info.fileName) {
+      photoUrl = uploadFile(info.fileData, info.fileName, info.fileType, info.orgName || "설비");
+    }
+
     updateMap = {
       "id": idToUpdate,
       "설비명": info.name, "name": info.name,
@@ -311,11 +348,21 @@ function doPost(e) {
       "주요제원": info.specs, "specs": info.specs,
       "관리주기": info.cycle, "cycle": info.cycle,
       "관리메뉴얼": info.manualUrl, "manualUrl": info.manualUrl,
-      "사진": info.photoUrl, "photoUrl": info.photoUrl, "사진URL": info.photoUrl,
+      "사진": photoUrl, "photoUrl": photoUrl, "사진URL": photoUrl,
       "As업체": info.asCompany, "asCompany": info.asCompany,
       "전화번호": info.asTel, "asTel": info.asTel,
-      "비고": info.remarks, "remarks": info.remarks
+      "비고": info.remarks, "remarks": info.remarks,
+      "coordX": params.coordX || info.x, "x": params.coordX || info.x,
+      "coordY": params.coordY || info.y, "y": params.coordY || info.y
     };
+    
+    // 만약 행이 존재하지 않는다면(ADD_EQUIPMENT인 경우 등) 새 행 추가
+    if (rowIndex === -1 && action === "ADD_EQUIPMENT") {
+      const rowData = headers.map(h => updateMap[h] || "");
+      targetSheet.appendRow(rowData);
+      return ContentService.createTextOutput(JSON.stringify({result: "success"}))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
   } else if (action === "LOG") {
     if (params.category === "CONSTRUCTION") {
       let constSheet = ss.getSheetByName("공사관리");

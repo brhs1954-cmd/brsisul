@@ -103,6 +103,12 @@ const App: React.FC = () => {
         ApiService.fetchData("수질관리")
       ]);
 
+      // Debug sheet headers
+      if (constructionData?.[0]) console.log('Construction Headers:', Object.keys(constructionData[0]));
+      if (landscapingData?.[0]) console.log('Landscaping Headers:', Object.keys(landscapingData[0]));
+      if (waterData?.[0]) console.log('Water Quality Headers:', Object.keys(waterData[0]));
+      if (logData?.[0]) console.log('Log Headers:', Object.keys(logData[0]));
+
       if (infoData && Array.isArray(infoData)) {
         const mappedContacts = infoData.map((row: any) => ({
           orgName: String(getSheetValue(row, '기관명') || '').trim(),
@@ -226,18 +232,21 @@ const App: React.FC = () => {
           if (category.toUpperCase() === 'MAINTENANCE') {
             if (!historyMap[org]) historyMap[org] = [];
             
+            const valRaw = getSheetValue(row, 'value');
             let value = {};
             try {
-              const valRaw = getSheetValue(row, 'value');
               value = typeof valRaw === 'string' ? JSON.parse(valRaw) : (valRaw || {});
             } catch(e) {}
+
+            const fileUrl = String(getSheetValue(row, '첨부파일', 'fileUrl', 'link', 'attachment', 'attachmentUrl', 'drive') || '').trim();
 
             historyMap[org].push({
               id: `log-${Date.now()}-${Math.random()}`,
               date: formatDateToKST(getSheetValue(row, 'timestamp')),
               type: 'maintenance',
               description: String(getSheetValue(row, 'title') || ''),
-              worker: (value as any).worker || '관리자'
+              worker: (value as any).worker || '관리자',
+              fileUrl: fileUrl || (value as any).fileUrl || (value as any).attachmentUrl
             });
           }
         });
@@ -256,7 +265,7 @@ const App: React.FC = () => {
           const date = formatDateToKST(getSheetValue(row, '날짜 / 기간', '날짜/기간', '날짜', '기간', 'timestamp')).trim();
           const title = String(getSheetValue(row, '작업/공사명', '작업 / 공사명', '작업명', '공사명', 'title') || '').trim();
           const contractor = String(getSheetValue(row, '담당자 / 업체', '담당자/업체', '담당자', '업체', 'worker') || '미지정').trim();
-          const fileUrl = String(getSheetValue(row, '첨부파일', 'fileUrl', 'link') || '').trim();
+          const fileUrl = String(getSheetValue(row, '첨부파일', 'fileUrl', 'link', 'attachment', 'attachmentUrl', 'drive', '현장사진', '사진') || '').trim();
           
           // 중복 방지를 위한 키 생성 (모든 필드 트림 및 소문자화로 더 강력하게 체크)
           const constKey = `${org}-${date}-${title}-${contractor}`.toLowerCase().replace(/\s+/g, '');
@@ -285,7 +294,7 @@ const App: React.FC = () => {
           const date = formatDateToKST(getSheetValue(row, '날짜 / 기간', '날짜/기간', '날짜', '기간', 'timestamp')).trim();
           const title = String(getSheetValue(row, '작업/공사명', '작업 / 공사명', '작업명', '공사명', 'title') || '').trim();
           const worker = String(getSheetValue(row, '담당자 / 업체', '담당자/업체', '담당자', '업체', 'worker') || '미지정').trim();
-          const fileUrl = String(getSheetValue(row, '첨부파일', 'fileUrl', 'link') || '').trim();
+          const fileUrl = String(getSheetValue(row, '첨부파일', 'fileUrl', 'link', 'attachment', 'attachmentUrl', 'drive', '현장사진', '사진') || '').trim();
           
           const landKey = `${org}-${date}-${title}-${worker}`.toLowerCase().replace(/\s+/g, '');
           if (seenLand.has(landKey)) return;
@@ -317,7 +326,7 @@ const App: React.FC = () => {
           const turbidity = Number(getSheetValue(row, '탁도', 'turbidity', 'Turbidity') || 0);
           const temperature = Number(getSheetValue(row, '수온', 'temperature', 'Temperature', '온도') || 0);
           const worker = String(getSheetValue(row, '담당자', 'worker') || '미지정').trim();
-          const fileUrl = String(getSheetValue(row, '첨부파일', 'fileUrl', 'link') || '').trim();
+          const fileUrl = String(getSheetValue(row, '첨부파일', 'fileUrl', 'link', 'attachment', 'attachmentUrl', 'drive') || '').trim();
 
           const waterKey = `${tankName}-${date}-${ph}-${chlorine}-${turbidity}-${temperature}-${worker}`.toLowerCase().replace(/\s+/g, '');
           if (seenWater.has(waterKey)) return;
