@@ -108,11 +108,12 @@ function uploadFile(fileData, fileName, fileType, orgName) {
 }
 
 function doPost(e) {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const params = JSON.parse(e.postData.contents);
-  const action = params.action; 
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const params = JSON.parse(e.postData.contents);
+    const action = params.action; 
   
-  let sheetName = "건축물관리";
+    let sheetName = "건축물관리";
   if (action === "UPDATE_EQUIPMENT" || action === "UPDATE_EQUIPMENT_POSITION" || action === "ADD_EQUIPMENT") {
     sheetName = "설비관리";
   } else if (action === "NOTICE" || (params.category === "NOTICE" && action === "LOG")) {
@@ -210,12 +211,61 @@ function doPost(e) {
     const info = params.info || {};
     let photoUrl = info.photoUrl || "";
     if (info.fileData && info.fileName) photoUrl = uploadFile(info.fileData, info.fileName, info.fileType, info.name || "건축물");
-    updateMap = {"id": idToUpdate, "name": info.name, "시설명": info.name, "구조": info.structure, "규모": info.floors, "연면적": info.area, "준공일": info.completionDate, "안전등급": info.safetyGrade, "최종안전진단일": info.lastSafetyCheck, "coordX": params.coordX || info.x, "coordY": params.coordY || info.y, "address": info.address, "photoUrl": photoUrl, "사진": photoUrl};
+    
+    // 기본 매핑 (정보 소실 방지)
+    updateMap = {
+      "id": idToUpdate,
+      "name": info.name,
+      "시설명": info.name,
+      "구조": info.structure,
+      "규모": info.floors,
+      "연면적": info.area,
+      "준공일": info.completionDate,
+      "안전등급": info.safetyGrade,
+      "최종안전진단일": info.lastSafetyCheck,
+      "address": info.address,
+      "valuation": info.valuation,
+      "bookValue": info.bookValue,
+      "usage": info.usage,
+      "roofType": info.roofType,
+      "heatingType": info.heatingType,
+      "elevatorCount": info.elevatorCount,
+      "exteriorFinish": info.exteriorFinish,
+      "parkingCapacity": info.parkingCapacity,
+      "floorPlanUrl": info.floorPlanUrl,
+      "registrationTranscriptUrl": info.registrationTranscriptUrl,
+      "buildingLedgerUrl": info.buildingLedgerUrl,
+      "photoUrl": photoUrl,
+      "사진": photoUrl,
+      "coordX": params.coordX || info.x,
+      "coordY": params.coordY || info.y
+    };
+    // 추가 필드가 있을 경우 대비하여 전체 병합
+    Object.keys(info).forEach(k => { if (updateMap[k] === undefined) updateMap[k] = info[k]; });
+    
   } else if (action === "UPDATE_EQUIPMENT" || action === "ADD_EQUIPMENT") {
     const info = params.info || {};
     let photoUrl = info.photoUrl || "";
-    if (info.fileData && info.fileName) photoUrl = uploadFile(info.fileData, info.fileName, info.fileType, info.orgName || "설비");
-    updateMap = {"id": idToUpdate, "설비명": info.name, "설비위치": info.location, "관리주체": info.orgName, "설치일": info.installDate, "주요제원": info.specs, "관리주기": info.cycle, "사진": photoUrl, "As업체": info.asCompany, "전화번호": info.asTel, "비고": info.remarks, "coordX": params.coordX || info.x, "coordY": params.coordY || info.y};
+    if (info.fileData && info.fileName) photoUrl = uploadFile(info.fileData, info.fileName, info.fileType, info.name || "설비");
+    
+    updateMap = {
+      "id": idToUpdate,
+      "설비명": info.name,
+      "설비위치": info.location,
+      "관리주체": info.orgName,
+      "설치일": info.installDate,
+      "주요제원": info.specs,
+      "관리주기": info.cycle,
+      "사진": photoUrl,
+      "photoUrl": photoUrl,
+      "As업체": info.asCompany,
+      "전화번호": info.asTel,
+      "비고": info.remarks,
+      "coordX": params.coordX || info.x,
+      "coordY": params.coordY || info.y
+    };
+    Object.keys(info).forEach(k => { if (updateMap[k] === undefined) updateMap[k] = info[k]; });
+    
     if (rowIndex === -1 && action === "ADD_EQUIPMENT") {
       targetSheet.appendRow(headers.map(h => updateMap[h] || ""));
       return ContentService.createTextOutput(JSON.stringify({result: "success"})).setMimeType(ContentService.MimeType.JSON);
@@ -303,4 +353,7 @@ function doPost(e) {
     headers.forEach((header, colIdx) => { if (updateMap[header] !== undefined) targetSheet.getRange(rowIndex, colIdx + 1).setValue(updateMap[header]); });
   }
   return ContentService.createTextOutput(JSON.stringify({result: "success"})).setMimeType(ContentService.MimeType.JSON);
+  } catch (err) {
+    return ContentService.createTextOutput(JSON.stringify({result: "error", message: err.toString()})).setMimeType(ContentService.MimeType.JSON);
+  }
 }

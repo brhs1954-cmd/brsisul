@@ -45,6 +45,7 @@ const BuildingEditModal: React.FC<BuildingEditModalProps> = ({
   });
   
   const [isSaving, setIsSaving] = useState(false);
+  const [fileDetails, setFileDetails] = useState<{ name: string; type: string; data: string } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const getImageUrl = (url: string) => {
@@ -83,6 +84,7 @@ const BuildingEditModal: React.FC<BuildingEditModalProps> = ({
         x: facility.x || 0,
         y: facility.y || 0
       });
+      setFileDetails(null);
     }
   }, [facility]);
 
@@ -103,9 +105,19 @@ const BuildingEditModal: React.FC<BuildingEditModalProps> = ({
         try {
           const compressed = await compressImage(reader.result as string);
           setFormData(prev => ({ ...prev, photoUrl: compressed }));
+          setFileDetails({
+            name: file.name,
+            type: file.type,
+            data: compressed
+          });
         } catch (error) {
           console.error("Image compression failed:", error);
           setFormData(prev => ({ ...prev, photoUrl: reader.result as string }));
+          setFileDetails({
+            name: file.name,
+            type: file.type,
+            data: reader.result as string
+          });
         }
       };
       reader.readAsDataURL(file);
@@ -114,6 +126,7 @@ const BuildingEditModal: React.FC<BuildingEditModalProps> = ({
 
   const removePhoto = () => {
     setFormData(prev => ({ ...prev, photoUrl: '' }));
+    setFileDetails(null);
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
@@ -121,7 +134,15 @@ const BuildingEditModal: React.FC<BuildingEditModalProps> = ({
     e.preventDefault();
     setIsSaving(true);
     try {
-      const result = await ApiService.updateBuildingInfo(facility.id, formData);
+      // 폼 데이터와 파일 정보를 결합
+      const submitInfo = {
+        ...formData,
+        fileData: fileDetails?.data,
+        fileName: fileDetails?.name,
+        fileType: fileDetails?.type
+      };
+      
+      const result = await ApiService.updateBuildingInfo(facility.id, submitInfo);
       if (result.success) {
         await onSave();
         alert(`시트 정보가 성공적으로 저장되었습니다.`);
