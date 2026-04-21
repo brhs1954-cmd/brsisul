@@ -767,7 +767,7 @@ const navigation = [
   { name: '홈 대시보드', icon: Home, id: 'home' },
   { name: '조감도 탐색', icon: MapIcon, id: 'map' },
   { name: '건축물 현황', icon: Building2, id: 'building' },
-  { name: '설비(구축물) 관리', icon: Zap, id: 'equipment' },
+  { name: '시설물 관리', icon: Zap, id: 'equipment' },
   { name: '차량 현황', icon: Truck, id: 'vehicle' },
   { name: '조경 관리', icon: Trees, id: 'landscaping' },
   { name: '수질 관리', icon: Droplets, id: 'water' },
