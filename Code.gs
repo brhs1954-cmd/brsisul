@@ -333,17 +333,29 @@ function doPost(e) {
     
     // Header Synchronization: Ensure all expected headers exist
     let currentHeaders = logSheet.getRange(1, 1, 1, Math.max(1, logSheet.getLastColumn())).getValues()[0].map(h => String(h).trim());
-    let headersModified = false;
+    
     headings.forEach(h => {
-      if (h && currentHeaders.indexOf(h) === -1) {
+      let exists = currentHeaders.indexOf(h) !== -1;
+      // Alias handling for attachment column
+      if (h === "첨부파일" && !exists) {
+        exists = (currentHeaders.indexOf("첨부이미지") !== -1 || currentHeaders.indexOf("첨부") !== -1 || currentHeaders.indexOf("파일") !== -1);
+      }
+      
+      if (h && !exists) {
         logSheet.getRange(1, currentHeaders.length + 1).setValue(h);
         currentHeaders.push(h);
-        headersModified = true;
       }
     });
-    
+
     // Prepare row data based on ACTUAL headers in the sheet to prevent column shift
-    const rowData = currentHeaders.map(h => dataMap[h] !== undefined ? dataMap[h] : "");
+    const rowData = currentHeaders.map(h => {
+      if (dataMap[h] !== undefined) return dataMap[h];
+      // Alias mapping for attachment column
+      if ((h === "첨부이미지" || h === "첨부" || h === "파일") && dataMap["첨부파일"] !== undefined) {
+        return dataMap["첨부파일"];
+      }
+      return "";
+    });
     logSheet.appendRow(rowData);
     
     return ContentService.createTextOutput(JSON.stringify({result: "success"})).setMimeType(ContentService.MimeType.JSON);

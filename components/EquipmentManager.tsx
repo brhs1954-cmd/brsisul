@@ -23,6 +23,7 @@ import {
   Eye
 } from 'lucide-react';
 import EquipmentEditModal from './EquipmentEditModal';
+import { getDisplayImageUrl } from '../lib/imageUtils';
 
 interface EquipmentManagerProps {
   equipment: Equipment[];
@@ -35,17 +36,6 @@ const EquipmentManager: React.FC<EquipmentManagerProps> = ({ equipment, onRefres
   const [searchQuery, setSearchQuery] = useState('');
   const [editingEq, setEditingEq] = useState<Equipment | null>(null);
   const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
-
-  // 구글 드라이브 링크를 직접 표시 가능한 URL로 변환
-  const getImageUrl = (url: string) => {
-    if (!url) return null;
-    if (url.startsWith('data:')) return url; // Base64 데이터는 그대로 유지
-    if (url.includes('drive.google.com')) {
-      const match = url.match(/[-\w]{25,}/);
-      if (match) return `https://lh3.googleusercontent.com/d/${match[0]}`;
-    }
-    return url;
-  };
 
   const filteredEquipment = useMemo(() => {
     const term = searchQuery.trim().toLowerCase();
@@ -143,7 +133,7 @@ const EquipmentManager: React.FC<EquipmentManagerProps> = ({ equipment, onRefres
             <tbody className="divide-y divide-slate-50">
               {filteredEquipment.length > 0 ? (
                 filteredEquipment.map((eq, index) => {
-                  const displayImageUrl = getImageUrl(eq.photoUrl);
+                  const displayImageUrl = getDisplayImageUrl(eq.photoUrl);
                   return (
                     <tr key={`${eq.id}-${index}`} className="hover:bg-amber-50/20 transition-all group animate-in fade-in slide-in-from-left-2 duration-300">
                       <td className="px-8 py-6 text-center">
@@ -163,6 +153,7 @@ const EquipmentManager: React.FC<EquipmentManagerProps> = ({ equipment, onRefres
                                 src={displayImageUrl} 
                                 alt={eq.name} 
                                 className="w-full h-full object-cover" 
+                                referrerPolicy="no-referrer"
                                 onError={(e) => {
                                   e.currentTarget.style.display = 'none';
                                   e.currentTarget.parentElement?.querySelector('.fallback-icon')?.classList.remove('hidden');
@@ -263,6 +254,7 @@ const EquipmentManager: React.FC<EquipmentManagerProps> = ({ equipment, onRefres
               src={previewImageUrl} 
               alt="설비 확대 사진" 
               className="w-full h-full object-contain rounded-3xl shadow-2xl animate-in zoom-in duration-300 border-4 border-white/10"
+              referrerPolicy="no-referrer"
               onClick={(e) => e.stopPropagation()}
             />
             <div className="mt-6 text-white/50 text-xs font-bold uppercase tracking-[0.2em]">

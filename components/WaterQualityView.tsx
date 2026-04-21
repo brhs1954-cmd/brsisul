@@ -21,7 +21,7 @@ import {
 } from 'lucide-react';
 import HistoryTable from './HistoryTable';
 import { getCurrentKSTDateString } from '../lib/dateUtils';
-import { compressImage } from '../lib/imageUtils';
+import { compressImage, getDisplayImageUrl } from '../lib/imageUtils';
 
 interface WaterQualityViewProps {
   facilities: Hotspot[];
@@ -153,17 +153,6 @@ const WaterQualityView: React.FC<WaterQualityViewProps> = ({ facilities, equipme
     return equipment.filter(eq => eq.name.includes('저수조'));
   }, [equipment]);
 
-  // 구글 드라이브 링크를 직접 표시 가능한 URL로 변환
-  const getImageUrl = (url: string) => {
-    if (!url) return null;
-    if (url.startsWith('data:')) return url;
-    if (url.includes('drive.google.com')) {
-      const match = url.match(/[-\w]{25,}/);
-      if (match) return `https://lh3.googleusercontent.com/d/${match[0]}`;
-    }
-    return url;
-  };
-
   const handleAddWaterLog = async (data: any) => {
     await onAddLog('WATER_QUALITY', {
       org: data.org,
@@ -230,7 +219,7 @@ const WaterQualityView: React.FC<WaterQualityViewProps> = ({ facilities, equipme
       <div className="grid lg:grid-cols-2 gap-8">
         {waterTanks.length > 0 ? (
           waterTanks.map((tank, index) => {
-            const displayImageUrl = getImageUrl(tank.photoUrl);
+            const displayImageUrl = getDisplayImageUrl(tank.photoUrl);
             
             // 해당 저수조의 최신 수질 데이터 찾기
             const normalizedTankName = tank.name.toLowerCase().replace(/\s+/g, '');
@@ -303,6 +292,7 @@ const WaterQualityView: React.FC<WaterQualityViewProps> = ({ facilities, equipme
                           src={displayImageUrl} 
                           alt={tank.name} 
                           className="w-full h-full object-cover group-hover/img:scale-110 transition-transform duration-500" 
+                          referrerPolicy="no-referrer"
                           onError={(e) => { e.currentTarget.style.display = 'none'; }}
                         />
                       ) : (
@@ -597,7 +587,7 @@ const WaterQualityView: React.FC<WaterQualityViewProps> = ({ facilities, equipme
             <button className="absolute -top-12 right-0 text-white hover:text-blue-400 transition-colors flex items-center gap-2 font-black text-sm" onClick={() => setPreviewImageUrl(null)}>
               <X className="w-6 h-6" /> 닫기
             </button>
-            <img src={previewImageUrl} alt="확대 사진" className="w-full h-full object-contain rounded-3xl shadow-2xl animate-in zoom-in duration-300 border-4 border-white/10" onClick={(e) => e.stopPropagation()} />
+            <img src={previewImageUrl} alt="확대 사진" className="w-full h-full object-contain rounded-3xl shadow-2xl animate-in zoom-in duration-300 border-4 border-white/10" referrerPolicy="no-referrer" onClick={(e) => e.stopPropagation()} />
           </div>
         </div>
       )}

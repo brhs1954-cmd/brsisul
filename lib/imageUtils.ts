@@ -31,3 +31,16 @@ export const compressImage = (dataUrl: string, maxWidth = 800, quality = 0.7): P
     img.onerror = (err) => reject(err);
   });
 };
+
+/**
+ * 구글 드라이브 링크를 직접 표시 가능한 URL로 변환
+ */
+export const getDisplayImageUrl = (url: string | undefined | null): string => {
+  if (!url) return '';
+  if (url.startsWith('data:')) return url; // Base64 데이터는 그대로 유지
+  if (url.includes('drive.google.com')) {
+    const match = url.match(/[-\w]{25,}/);
+    if (match) return `https://lh3.googleusercontent.com/d/${match[0]}`;
+  }
+  return url;
+};

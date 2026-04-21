@@ -2,6 +2,7 @@
 import React from 'react';
 import { X, Calendar, Megaphone, Bell, Image as ImageIcon, Paperclip, Download } from 'lucide-react';
 import { Notice } from '../types';
+import { getDisplayImageUrl } from '../lib/imageUtils';
 
 interface NoticeDetailModalProps {
   notice: Notice;
@@ -65,7 +66,12 @@ const NoticeDetailModal: React.FC<NoticeDetailModalProps> = ({ notice, onClose }
                 <ImageIcon className="w-3 h-3 mr-1" /> 첨부 사진
               </p>
               <div className="rounded-3xl overflow-hidden border border-slate-200 shadow-sm bg-white">
-                <img src={notice.photoUrl} alt="공지 첨부 사진" className="w-full h-auto object-contain max-h-[400px]" />
+                <img 
+                  src={getDisplayImageUrl(notice.photoUrl)} 
+                  alt="공지 첨부 사진" 
+                  className="w-full h-auto object-contain max-h-[400px]"
+                  referrerPolicy="no-referrer"
+                />
               </div>
             </div>
           )}

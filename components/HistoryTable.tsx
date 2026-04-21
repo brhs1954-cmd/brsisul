@@ -3,7 +3,7 @@ import React, { useState, useRef, useMemo } from 'react';
 import { Hotspot } from '../types';
 import { Search, Filter, Download, MoreVertical, Calendar, User, Tag, Plus, X, Paperclip, ExternalLink, Eye, MapPin, HardHat, Droplets, Activity, Thermometer } from 'lucide-react';
 import { getCurrentKSTDateString } from '../lib/dateUtils';
-import { compressImage } from '../lib/imageUtils';
+import { compressImage, getDisplayImageUrl } from '../lib/imageUtils';
 
 interface HistoryTableProps {
   title: string;
@@ -50,16 +50,34 @@ const HistoryTable: React.FC<HistoryTableProps> = ({ title, type, facilities, re
   });
 
   const allRecords = useMemo(() => {
+    // Helper to extract value regardless of key variations (Korean/English/Capitalization)
+    const getVal = (r: any, keys: string[]) => {
+      for (const k of keys) {
+        if (r[k] !== undefined) return r[k];
+      }
+      return undefined;
+    };
+
     // 1. 만약 prop으로 records가 전달되었다면 그것을 우선 사용
     if (propRecords && propRecords.length > 0) {
       const mappedPropRecords = propRecords.map(r => ({
         ...r,
-        facilityName: r.facilityName || r.tankName || r.org || '기타'
+        // Normalize keys from Google Sheets (Korean Headers) to standard keys
+        facilityName: r.facilityName || r.tankName || r.org || r['대상 시설'] || r['저수조 명'] || '기타',
+        date: r.date || r.period || r['날짜 / 기간'] || r['날짜'],
+        title: r.title || r.description || r['작업/공사명'] || r['비고/청소내용'],
+        worker: r.worker || r.contractor || r['담당자 / 업체'] || r['담당자'],
+        remarks: r.remarks || r['비고/청소내용'],
+        ph: getVal(r, ['ph', 'pH']),
+        chlorine: getVal(r, ['chlorine', '잔류염소']),
+        turbidity: getVal(r, ['turbidity', '탁도']),
+        temperature: getVal(r, ['temperature', '수온']),
+        fileUrl: r.fileUrl || r.attachedFile || r['첨부파일'] || r['첨부이미지'] || r['첨부'] || r.drive || r.file
       }));
       
       const seen = new Set();
       return mappedPropRecords.filter(r => {
-        const key = `${r.id}-${r.facilityName}-${r.date || r.period}-${r.description || r.title || r.remarks || ''}`
+        const key = `${r.id}-${r.facilityName}-${r.date}-${r.title || ''}`
           .toLowerCase()
           .replace(/\s+/g, '');
         if (seen.has(key)) return false;
@@ -81,7 +99,7 @@ const HistoryTable: React.FC<HistoryTableProps> = ({ title, type, facilities, re
       }
     });
 
-    // 중복 제거 (대상시설, 날짜, 내용, 담당자가 모두 같은 경우)
+    // 중복 제거 및 정규화
     const seen = new Set();
     return records.filter(r => {
       const key = `${r.facilityName}-${r.date || r.period}-${r.description || r.title || r.remarks || ''}-${r.worker || r.contractor}`
@@ -90,14 +108,22 @@ const HistoryTable: React.FC<HistoryTableProps> = ({ title, type, facilities, re
       if (seen.has(key)) return false;
       seen.add(key);
       return true;
-    });
-  }, [sortedFacilities, type]);
+    }).map(r => ({
+      ...r,
+      facilityName: r.facilityName || r.tankName || r.org || r['대상 시설'] || r['저수조 명'] || '기타',
+      date: r.date || r.period || r['날짜 / 기간'] || r['날짜'],
+      title: r.title || r.description || r['작업/공사명'] || r['비고/청소내용'],
+      worker: r.worker || r.contractor || r['담당자 / 업체'] || r['담당자'],
+      remarks: r.remarks || r['비고/청소내용'],
+      fileUrl: r.fileUrl || r.attachedFile || r['첨부파일'] || r['첨부이미지'] || r['첨부'] || r.drive || r.file
+    }));
+  }, [sortedFacilities, type, propRecords]);
 
   const filteredRecords = allRecords.filter((r: any) => 
-    (r.facilityName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (r.description || r.title || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (r.remarks || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (r.worker || r.contractor || '').toLowerCase().includes(searchTerm.toLowerCase())
+    (String(r.facilityName || '')).toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (String(r.title || '')).toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (String(r.remarks || '')).toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (String(r.worker || '')).toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const handleExport = () => {
@@ -530,7 +556,7 @@ const HistoryTable: React.FC<HistoryTableProps> = ({ title, type, facilities, re
                   {type === 'water_quality' ? '수질/청소 상세내역' : '관리 실적 상세'}
                 </span>
                 <h3 className="text-2xl font-black text-slate-900 leading-tight">
-                  {selectedRecord.remarks ? '저수조 청소 및 점검' : (selectedRecord.description || selectedRecord.title || '상세 정보')}
+                  {selectedRecord.title || '상세 정보'}
                 </h3>
               </div>
               <button 
@@ -548,7 +574,7 @@ const HistoryTable: React.FC<HistoryTableProps> = ({ title, type, facilities, re
                   <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center">
                     <Calendar className="w-3.5 h-3.5 mr-1.5" /> 날짜 / 기간
                   </p>
-                  <p className="text-base font-black text-slate-800">{selectedRecord.date || selectedRecord.period}</p>
+                  <p className="text-base font-black text-slate-800">{selectedRecord.date || '-'}</p>
                 </div>
                 <div className="space-y-1.5 p-5 bg-slate-50 rounded-2xl border border-slate-100">
                   <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center">
@@ -560,7 +586,7 @@ const HistoryTable: React.FC<HistoryTableProps> = ({ title, type, facilities, re
                   <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center">
                     <User className="w-3.5 h-3.5 mr-1.5" /> 담당자 / 업체
                   </p>
-                  <p className="text-base font-black text-slate-800">{selectedRecord.worker || selectedRecord.contractor || '미지정'}</p>
+                  <p className="text-base font-black text-slate-800">{selectedRecord.worker || '미지정'}</p>
                 </div>
                 <div className="space-y-1.5 p-5 bg-blue-50/50 rounded-2xl border border-blue-100">
                   <p className="text-[10px] font-black text-blue-400 uppercase tracking-widest flex items-center">
@@ -597,8 +623,8 @@ const HistoryTable: React.FC<HistoryTableProps> = ({ title, type, facilities, re
                           <span className="ml-1 text-[8px] font-black uppercase tracking-tighter">{m.label}</span>
                         </div>
                         <p className={`text-lg font-black ${m.color}`}>
-                          {m.value}
-                          {m.unit && <span className="text-[10px] ml-0.5 opacity-60 font-bold">{m.unit}</span>}
+                          {m.value || '-'}
+                          {m.value && m.unit && <span className="text-[10px] ml-0.5 opacity-60 font-bold">{m.unit}</span>}
                         </p>
                       </div>
                     ))}
@@ -608,8 +634,8 @@ const HistoryTable: React.FC<HistoryTableProps> = ({ title, type, facilities, re
 
               {/* Image Preview / Attachment */}
               {(() => {
-                const link = selectedRecord.fileUrl || selectedRecord.attachedFile || selectedRecord.첨부파일 || selectedRecord.drive || (selectedRecord.remarks?.startsWith('http') ? selectedRecord.remarks : null);
-                const isImage = link && (String(link).toLowerCase().match(/\.(jpg|jpeg|png|webp|gif|avif)/) || String(link).includes('lh3.googleusercontent.com'));
+                const link = selectedRecord.fileUrl;
+                const isImage = link && (String(link).toLowerCase().match(/\.(jpg|jpeg|png|webp|gif|avif)/) || String(link).includes('lh3.googleusercontent.com') || String(link).includes('drive.google.com/uc'));
                 
                 return link ? (
                   <div className="space-y-4">
@@ -617,7 +643,7 @@ const HistoryTable: React.FC<HistoryTableProps> = ({ title, type, facilities, re
                     {isImage ? (
                       <div className="relative rounded-[2.5rem] overflow-hidden border border-slate-200 bg-slate-100 group/zoom shadow-inner">
                         <img 
-                          src={String(link).includes('drive.google.com') ? `https://lh3.googleusercontent.com/d/${String(link).match(/[-\w]{25,}/)?.[0]}` : String(link)} 
+                          src={getDisplayImageUrl(String(link))} 
                           alt="첨부 이미지"
                           className="w-full max-h-[300px] object-contain"
                           referrerPolicy="no-referrer"

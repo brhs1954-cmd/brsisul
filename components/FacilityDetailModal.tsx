@@ -4,6 +4,7 @@ import {
   Hotspot, FacilityStatus, FacilityDocument, ManagementLog 
 } from '../types';
 import { getCurrentKSTDateString } from '../lib/dateUtils';
+import { getDisplayImageUrl as getDriveImageUrl } from '../lib/imageUtils';
 import { 
   X, Calendar, Clipboard, Trees, Hammer, Activity, User, 
   ChevronRight, FileText, FileImage, FileCode, Plus, 
@@ -78,17 +79,7 @@ const FacilityDetailModal: React.FC<FacilityDetailModalProps> = ({ facility, onC
     onUpdate(updatedFacility);
   };
 
-  const getImageUrl = (url?: string) => {
-    if (!url) return null;
-    if (url.startsWith('data:')) return url;
-    if (url.includes('drive.google.com')) {
-      const match = url.match(/[-\w]{25,}/);
-      if (match) return `https://lh3.googleusercontent.com/d/${match[0]}`;
-    }
-    return url;
-  };
-
-  const imageUrl = getImageUrl(info?.photoUrl);
+  const imageUrl = getDriveImageUrl(info?.photoUrl);
 
   const openLink = (url?: string) => {
     if (url && url.startsWith('http')) window.open(url, '_blank');
@@ -144,7 +135,7 @@ const FacilityDetailModal: React.FC<FacilityDetailModalProps> = ({ facility, onC
             <div className="w-full md:w-72 flex-shrink-0">
               <div className="relative aspect-[4/3] md:aspect-square bg-slate-100 rounded-3xl border border-slate-200 overflow-hidden shadow-sm group">
                 {imageUrl ? (
-                  <img src={imageUrl} alt={facility.name} className="w-full h-full object-cover transition-transform group-hover:scale-105 duration-500" />
+                  <img src={imageUrl} alt={facility.name} className="w-full h-full object-cover transition-transform group-hover:scale-105 duration-500" referrerPolicy="no-referrer" />
                 ) : (
                   <div className="flex flex-col items-center justify-center h-full text-slate-300">
                     <ImageIcon className="w-12 h-12 mb-2 opacity-20" />
