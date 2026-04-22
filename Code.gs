@@ -23,7 +23,46 @@ function triggerAuthorization() {
 
 function doGet(e) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sheetName = (e && e.parameter && e.parameter.sheet) || "건축물관리";
+  const sheetParam = (e && e.parameter && e.parameter.sheet) || "건축물관리";
+  
+  // Bulk fetch support
+  if (sheetParam === "all") {
+    const sheetNames = ["log", "관로관리", "공지사항", "설비관리", "차량현황", "공사관리", "조경계획", "조경관리", "수질관리", "info", "건축물관리"];
+    const allData = {};
+    
+    sheetNames.forEach(name => {
+      const sheet = ss.getSheetByName(name);
+      if (!sheet) {
+        allData[name] = [];
+        return;
+      }
+      const lastRow = sheet.getLastRow();
+      const lastCol = sheet.getLastColumn();
+      if (lastRow < 1) {
+        allData[name] = [];
+        return;
+      }
+      
+      const data = sheet.getRange(1, 1, lastRow, lastCol).getValues();
+      const headers = data[0];
+      const rows = data.slice(1);
+      allData[name] = rows.map(row => {
+        let obj = { "__raw": row };
+        headers.forEach((header, i) => {
+          let value = row[i];
+          if (value instanceof Date) value = Utilities.formatDate(value, "GMT+9", "yyyy-MM-dd HH:mm:ss");
+          const headerStr = String(header || "").trim();
+          if (headerStr) obj[headerStr] = value;
+        });
+        return obj;
+      });
+    });
+    
+    return ContentService.createTextOutput(JSON.stringify(allData))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+
+  const sheetName = sheetParam;
   const sheet = ss.getSheetByName(sheetName);
   
   if (!sheet) {

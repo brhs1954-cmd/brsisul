@@ -95,20 +95,66 @@ const App: React.FC = () => {
   const refreshDataFromSheets = async () => {
     try {
       let currentEqList: Equipment[] = [];
-      const [buildingData, infoData, vehicleData, equipmentData, noticeData, pathData, logData, constructionData, landscapingPlanData, landscapingData, waterData] = await Promise.all([
-        ApiService.fetchData("건축물관리"),
-        ApiService.fetchData("info"),
-        ApiService.fetchData("차량현황"),
-        ApiService.fetchData("설비관리"),
-        ApiService.fetchData("공지사항"),
-        ApiService.fetchData("관로관리"),
-        ApiService.fetchData("log"),
-        ApiService.fetchData("공사관리"),
-        ApiService.fetchData("조경계획"),
-        ApiService.fetchData("조경관리"),
-        ApiService.fetchData("수질관리")
-      ]);
+      // 개별 시트 11번 요청 대신 'all' 파라미터로 한 번에 모든 데이터를 가져와 연동 시간을 대폭 단축합니다.
+      const bulkData = await ApiService.fetchData("all");
+      
+      if (!bulkData || typeof bulkData !== 'object') {
+        console.warn("Bulk data fetch failed, trying individual sheets as fallback...");
+        // 폴백: 만약 bulkData가 실패하면 개별 요청 시도
+        const results = await Promise.all([
+          ApiService.fetchData("건축물관리"),
+          ApiService.fetchData("info"),
+          ApiService.fetchData("차량현황"),
+          ApiService.fetchData("설비관리"),
+          ApiService.fetchData("공지사항"),
+          ApiService.fetchData("관로관리"),
+          ApiService.fetchData("log"),
+          ApiService.fetchData("공사관리"),
+          ApiService.fetchData("조경계획"),
+          ApiService.fetchData("조경관리"),
+          ApiService.fetchData("수질관리")
+        ]);
+        
+        processData(results[0], results[1], results[2], results[3], results[4], results[5], results[6], results[7], results[8], results[9], results[10]);
+        return;
+      }
 
+      processData(
+        bulkData["건축물관리"],
+        bulkData["info"],
+        bulkData["차량현황"],
+        bulkData["설비관리"],
+        bulkData["공지사항"],
+        bulkData["관로관리"],
+        bulkData["log"],
+        bulkData["공사관리"],
+        bulkData["조경계획"],
+        bulkData["조경관리"],
+        bulkData["수질관리"]
+      );
+    } catch (error) {
+      console.error("❌ 데이터 새로고침 실패:", error);
+    } finally {
+      setIsInitialSyncing(false);
+    }
+  };
+
+  const processData = (
+    buildingData: any, 
+    infoData: any, 
+    vehicleData: any, 
+    equipmentData: any, 
+    noticeData: any, 
+    pathData: any, 
+    logData: any, 
+    constructionData: any, 
+    landscapingPlanData: any, 
+    landscapingData: any, 
+    waterData: any
+  ) => {
+    try {
+      let currentEqList: Equipment[] = [];
+      
       // Debug sheet headers
       if (constructionData?.[0]) console.log('Construction Headers:', Object.keys(constructionData[0]));
       if (landscapingData?.[0]) console.log('Landscaping Headers:', Object.keys(landscapingData[0]));
