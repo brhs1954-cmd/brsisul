@@ -107,6 +107,14 @@ const InteractiveMap: React.FC<InteractiveMapProps> = ({
     setVisibleLayers(prev => ({ ...prev, [type]: !prev[type] }));
   };
 
+  const setAllLayers = (visible: boolean) => {
+    const newLayers = { ...visibleLayers };
+    Object.keys(newLayers).forEach(key => {
+      newLayers[key] = visible;
+    });
+    setVisibleLayers(newLayers);
+  };
+
   const handleMouseDown = (e: React.MouseEvent, id: string, type: 'building' | 'equipment') => {
     if (!isEditMode || isPathMode) return;
     e.preventDefault();
@@ -358,7 +366,26 @@ const InteractiveMap: React.FC<InteractiveMapProps> = ({
           {showLayerPanel && <span className="ml-2 text-xs font-black uppercase tracking-widest">레이어 설정</span>}
         </button>
         {showLayerPanel && (
-          <div className="bg-white/95 backdrop-blur-xl p-4 rounded-3xl shadow-2xl border border-slate-100 w-52 animate-in slide-in-from-top-2 duration-300">
+          <div className="bg-white/95 backdrop-blur-xl p-4 rounded-3xl shadow-2xl border border-slate-100 w-56 animate-in slide-in-from-top-2 duration-300">
+            <div className="flex items-center justify-between mb-3 px-1">
+              <h4 className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em]">레이어 가시성</h4>
+              <div className="flex items-center gap-2">
+                <button 
+                  onClick={() => setAllLayers(true)}
+                  className="text-[9px] font-black text-blue-600 hover:text-blue-700 transition-colors"
+                >
+                  전체선택
+                </button>
+                <div className="w-[1px] h-2 bg-slate-200"></div>
+                <button 
+                  onClick={() => setAllLayers(false)}
+                  className="text-[9px] font-black text-slate-400 hover:text-slate-600 transition-colors"
+                >
+                  전체해제
+                </button>
+              </div>
+            </div>
+
             <h4 className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2 ml-1">마커 표시 설정</h4>
             <div className="space-y-1 mb-4">
               {MARKER_LAYER_CONFIG.map(layer => (
