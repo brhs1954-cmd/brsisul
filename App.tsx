@@ -50,7 +50,7 @@ export interface ExtendedContactInfo extends ContactInfo {
 }
 
 const App: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'home' | 'map' | 'building' | 'equipment' | 'history' | 'landscaping' | 'water' | 'vehicle' | 'construction' | 'parking' | 'admin'>('home');
+  const [activeTab, setActiveTab] = useState<'home' | 'map' | 'building' | 'equipment' | 'history' | 'landscaping' | 'water' | 'vehicle' | 'construction' | 'construction_results' | 'parking' | 'admin'>('home');
   const [selectedFacility, setSelectedFacility] = useState<Hotspot | null>(null);
   const [selectedEquipment, setSelectedEquipment] = useState<Equipment | null>(null);
   const [selectedNotice, setSelectedNotice] = useState<Notice | null>(null); 
@@ -71,6 +71,7 @@ const App: React.FC = () => {
   const [landscapingPlans, setLandscapingPlans] = useState<any[]>([]);
   const [waterLogs, setWaterLogs] = useState<any[]>([]);
   const [constructionLogs, setConstructionLogs] = useState<any[]>([]);
+  const [constructionResultsLogs, setConstructionResultsLogs] = useState<any[]>([]);
   const [landscapingLogs, setLandscapingLogs] = useState<any[]>([]);
 
   // 디바운스 처리를 위한 타이머 레프
@@ -95,7 +96,7 @@ const App: React.FC = () => {
   const refreshDataFromSheets = async () => {
     try {
       let currentEqList: Equipment[] = [];
-      // 개별 시트 11번 요청 대신 'all' 파라미터로 한 번에 모든 데이터를 가져와 연동 시간을 대폭 단축합니다.
+      // 개별 시트 12번 요청 대신 'all' 파라미터로 한 번에 모든 데이터를 가져와 연동 시간을 대폭 단축합니다.
       const bulkData = await ApiService.fetchData("all");
       
       if (!bulkData || typeof bulkData !== 'object') {
@@ -110,12 +111,13 @@ const App: React.FC = () => {
           ApiService.fetchData("관로관리"),
           ApiService.fetchData("log"),
           ApiService.fetchData("공사관리"),
+          ApiService.fetchData("공사실적"),
           ApiService.fetchData("조경계획"),
           ApiService.fetchData("조경관리"),
           ApiService.fetchData("수질관리")
         ]);
         
-        processData(results[0], results[1], results[2], results[3], results[4], results[5], results[6], results[7], results[8], results[9], results[10]);
+        processData(results[0], results[1], results[2], results[3], results[4], results[5], results[6], results[7], results[8], results[9], results[10], results[11]);
         return;
       }
 
@@ -128,6 +130,7 @@ const App: React.FC = () => {
         bulkData["관로관리"],
         bulkData["log"],
         bulkData["공사관리"],
+        bulkData["공사실적"],
         bulkData["조경계획"],
         bulkData["조경관리"],
         bulkData["수질관리"]
@@ -148,6 +151,7 @@ const App: React.FC = () => {
     pathData: any, 
     logData: any, 
     constructionData: any, 
+    constructionResultsData: any,
     landscapingPlanData: any, 
     landscapingData: any, 
     waterData: any
@@ -157,6 +161,7 @@ const App: React.FC = () => {
       
       // Debug sheet headers
       if (constructionData?.[0]) console.log('Construction Headers:', Object.keys(constructionData[0]));
+      if (constructionResultsData?.[0]) console.log('Construction Results Headers:', Object.keys(constructionResultsData[0]));
       if (landscapingData?.[0]) console.log('Landscaping Headers:', Object.keys(landscapingData[0]));
       if (waterData?.[0]) console.log('Water Quality Headers:', Object.keys(waterData[0]));
       if (logData?.[0]) console.log('Log Headers:', Object.keys(logData[0]));
@@ -343,6 +348,53 @@ const App: React.FC = () => {
           }
         });
         setConstructionLogs(allConstructionLogs.sort((a, b) => b.date.localeCompare(a.date)));
+      }
+
+      let allConstructionResultsLogs: any[] = [];
+      if (constructionResultsData && Array.isArray(constructionResultsData)) {
+        const seenConstResults = new Set();
+        constructionResultsData.forEach((row: any) => {
+          const type = String(getSheetValue(row, '시설명', '구분') || '').trim();
+          const year = String(getSheetValue(row, '연도별', '연도') || '').trim();
+          const title = String(getSheetValue(row, '사업명', '작업/공사명', 'title') || '').trim();
+          const amount = String(getSheetValue(row, '사업량') || '').trim();
+          const contractor = String(getSheetValue(row, '공사업자', '담당자 / 업체', 'worker') || '미지정').trim();
+          const content = String(getSheetValue(row, '주요내용', '내용') || '').trim();
+          const budget = String(getSheetValue(row, '예산액(설계)', '예산액') || '').trim();
+          const contractPrice = String(getSheetValue(row, '계약액') || '').trim();
+          const designChange = String(getSheetValue(row, '설계변경') || '').trim();
+          const settlement = String(getSheetValue(row, '정산액') || '').trim();
+          const remarks = String(getSheetValue(row, '비고') || '').trim();
+          const fileUrl = String(getSheetValue(row, '첨부파일', '파일', 'fileUrl', 'link') || '').trim();
+          
+          const date = year || formatDateToKST(getSheetValue(row, 'timestamp')).trim();
+
+          const logItem = {
+            id: `constres-${Date.now()}-${Math.random()}`,
+            date,
+            year,
+            type,
+            title,
+            amount,
+            contractor,
+            content,
+            budget,
+            contractPrice,
+            designChange,
+            settlement,
+            remarks,
+            fileUrl,
+            status: 'completed',
+            org: '시설 전체' // 공사실적은 특정 시설보다는 전체 실적으로 관리되는 경우가 많으므로 기본값 설정
+          };
+
+          const key = `${year}-${title}-${contractor}-${amount}`.toLowerCase().replace(/\s+/g, '');
+          if (seenConstResults.has(key)) return;
+          seenConstResults.add(key);
+
+          allConstructionResultsLogs.push(logItem);
+        });
+        setConstructionResultsLogs(allConstructionResultsLogs.sort((a, b) => b.date.localeCompare(a.date)));
       }
 
       let landscapingMap: Record<string, any[]> = {};
@@ -752,6 +804,7 @@ const App: React.FC = () => {
       case 'landscaping': return <LandscapingView facilities={facilities} plans={landscapingPlans} logs={landscapingLogs} onRefresh={refreshDataFromSheets} onAdd={handleAddLandscaping} />;
       case 'water': return <WaterQualityView facilities={facilities} equipment={rawEquipment} waterLogs={waterLogs} onAddLog={handleAddLog} onRefresh={refreshDataFromSheets} />;
       case 'construction': return <HistoryTable title="공사 및 대수선 관리 실적" type="construction" facilities={facilities} records={constructionLogs} onAdd={handleAddConstruction} />;
+      case 'construction_results': return <HistoryTable title="공사실적 (연도별 전체 리스트)" type="construction_results" facilities={facilities} records={constructionResultsLogs} onAdd={(data) => handleAddLog('CONSTRUCTION_RESULTS', data)} />;
       case 'admin': return (
         <div className="space-y-8 animate-in fade-in duration-700">
           <div className="p-8 bg-white rounded-3xl border border-slate-100 shadow-sm">
@@ -762,7 +815,6 @@ const App: React.FC = () => {
           </div>
         </div>
       );
-      case 'home': return <Dashboard facilities={facilities} contacts={contacts} notices={notices} onNoticeClick={(n) => setSelectedNotice(n)} onAction={(tab) => setActiveTab(tab)} />;
     }
   };
 
@@ -818,6 +870,7 @@ const navigation = [
   { name: '조경 관리', icon: Trees, id: 'landscaping' },
   { name: '수질 관리', icon: Droplets, id: 'water' },
   { name: '공사 관리', icon: Hammer, id: 'construction' },
+  { name: '공사 실적', icon: ClipboardList, id: 'construction_results' },
   { name: '시스템 관리', icon: Settings, id: 'admin' },
 ];
 

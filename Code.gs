@@ -27,7 +27,7 @@ function doGet(e) {
   
   // Bulk fetch support
   if (sheetParam === "all") {
-    const sheetNames = ["log", "관로관리", "공지사항", "설비관리", "차량현황", "공사관리", "조경계획", "조경관리", "수질관리", "info", "건축물관리"];
+    const sheetNames = ["log", "관로관리", "공지사항", "설비관리", "차량현황", "공사관리", "공사실적", "조경계획", "조경관리", "수질관리", "info", "건축물관리"];
     const allData = {};
     
     sheetNames.forEach(name => {
@@ -66,7 +66,7 @@ function doGet(e) {
   const sheet = ss.getSheetByName(sheetName);
   
   if (!sheet) {
-    const autoCreateSheets = ["log", "관로관리", "공지사항", "설비관리", "차량현황", "공사관리", "조경계획", "조경관리", "수질관리", "info", "건축물관리"];
+    const autoCreateSheets = ["log", "관로관리", "공지사항", "설비관리", "차량현황", "공사관리", "공사실적", "조경계획", "조경관리", "수질관리", "info", "건축물관리"];
     if (autoCreateSheets.indexOf(sheetName) !== -1) {
       if (sheetName === "조경계획") {
         const initialData = [
@@ -351,6 +351,24 @@ function doPost(e) {
         "수온": val.temperature || "",
         "담당자": val.worker || "",
         "비고/청소내용": val.remarks || "",
+        "첨부파일": fileUrl,
+        "timestamp": Utilities.formatDate(new Date(), "GMT+9", "yyyy-MM-dd HH:mm:ss")
+      };
+    } else if (params.category === "CONSTRUCTION_RESULTS") {
+      logSheetName = "공사실적";
+      headings = ["시설명", "연도별", "사업명", "사업량", "공사업자", "주요내용", "예산액(설계)", "계약액", "설계변경", "정산액", "비고", "첨부파일", "timestamp"];
+      dataMap = {
+        "시설명": val.type || "",
+        "연도별": val.year || "",
+        "사업명": params.title || "",
+        "사업량": val.amount || "",
+        "공사업자": val.contractor || "",
+        "주요내용": val.content || "",
+        "예산액(설계)": val.budget || "",
+        "계약액": val.contractPrice || "",
+        "설계변경": val.designChange || "",
+        "정산액": val.settlement || "",
+        "비고": val.remarks || "",
         "첨부파일": fileUrl,
         "timestamp": Utilities.formatDate(new Date(), "GMT+9", "yyyy-MM-dd HH:mm:ss")
       };
