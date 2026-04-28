@@ -12,7 +12,8 @@ import {
   RefreshCw,
   FileText,
   AlertCircle,
-  Eye
+  Eye,
+  Pencil
 } from 'lucide-react';
 import { Notice } from '../types';
 import { ApiService } from '../api';
@@ -27,9 +28,11 @@ interface NoticeManagerProps {
 
 const NoticeManager: React.FC<NoticeManagerProps> = ({ notices, onRefresh, onViewNotice }) => {
   const [isAdding, setIsAdding] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [formData, setFormData] = useState<Partial<Notice>>({
+    id: '',
     title: '',
     category: '시설',
     isUrgent: false,
@@ -93,18 +96,29 @@ const NoticeManager: React.FC<NoticeManagerProps> = ({ notices, onRefresh, onVie
 
     setIsSubmitting(true);
     try {
-      await ApiService.submitData({
-        org: '시스템관리자',
-        category: 'NOTICE',
-        title: formData.title || '',
-        value: {
+      if (isEditing && formData.id) {
+        await ApiService.updateNotice(formData.id, {
           ...formData,
-          date: getCurrentKSTDateString()
-        }
-      });
-      alert('공지사항이 성공적으로 등록되었습니다.');
+          date: formData.date || getCurrentKSTDateString()
+        });
+        alert('공지사항이 수정되었습니다.');
+      } else {
+        await ApiService.submitData({
+          org: '시스템관리자',
+          category: 'NOTICE',
+          title: formData.title || '',
+          value: {
+            ...formData,
+            date: getCurrentKSTDateString()
+          }
+        });
+        alert('공지사항이 성공적으로 등록되었습니다.');
+      }
+      
       setIsAdding(false);
+      setIsEditing(false);
       setFormData({ 
+        id: '',
         title: '', 
         category: '시설', 
         isUrgent: false, 
@@ -120,10 +134,19 @@ const NoticeManager: React.FC<NoticeManagerProps> = ({ notices, onRefresh, onVie
       });
       await onRefresh();
     } catch (error) {
-      alert('등록 중 오류가 발생했습니다.');
+      alert('작업 중 오류가 발생했습니다.');
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleEdit = (notice: Notice) => {
+    setFormData({
+      ...notice,
+      isUrgent: notice.isUrgent === true || (notice.isUrgent as any) === "true"
+    });
+    setIsEditing(true);
+    setIsAdding(true);
   };
 
   const handleDelete = async (id: string) => {
@@ -166,9 +189,10 @@ const NoticeManager: React.FC<NoticeManagerProps> = ({ notices, onRefresh, onVie
         <div className="bg-slate-50 border-2 border-dashed border-slate-200 rounded-[2rem] p-8 animate-in zoom-in duration-200">
           <div className="flex justify-between items-center mb-6">
             <h4 className="text-sm font-black text-slate-700 flex items-center">
-              <FileText className="w-4 h-4 mr-2 text-rose-500" /> 신규 공지사항 작성
+              <FileText className="w-4 h-4 mr-2 text-rose-500" /> 
+              {isEditing ? '공지사항 수정' : '신규 공지사항 작성'}
             </h4>
-            <button onClick={() => setIsAdding(false)} className="text-slate-400 hover:text-slate-600">
+            <button onClick={() => { setIsAdding(false); setIsEditing(false); }} className="text-slate-400 hover:text-slate-600">
               <X className="w-5 h-5" />
             </button>
           </div>
@@ -277,11 +301,11 @@ const NoticeManager: React.FC<NoticeManagerProps> = ({ notices, onRefresh, onVie
                 className="flex-[2] py-4 bg-rose-600 text-white rounded-2xl font-black text-xs shadow-xl shadow-rose-100 hover:bg-rose-700 transition-all flex items-center justify-center"
               >
                 {isSubmitting ? <RefreshCw className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
-                시스템 공지 게시하기
+                {isEditing ? '수정 내용 저장하기' : '시스템 공지 게시하기'}
               </button>
               <button 
                 type="button"
-                onClick={() => setIsAdding(false)}
+                onClick={() => { setIsAdding(false); setIsEditing(false); }}
                 className="flex-1 py-4 bg-white text-slate-400 border border-slate-200 rounded-2xl font-black text-xs hover:bg-slate-100 transition-all"
               >
                 취소
@@ -342,6 +366,13 @@ const NoticeManager: React.FC<NoticeManagerProps> = ({ notices, onRefresh, onVie
                             title="공지 상세 내용 보기"
                           >
                             <Eye className="w-3.5 h-3.5 mr-1.5" /> 상세보기
+                          </button>
+                          <button 
+                            onClick={() => handleEdit(notice)}
+                            className="p-2 text-slate-300 hover:text-blue-500 hover:bg-blue-50 rounded-lg transition-all"
+                            title="수정"
+                          >
+                            <Pencil className="w-4 h-4" />
                           </button>
                           <button 
                             onClick={() => handleDelete(notice.id)}

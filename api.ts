@@ -18,7 +18,15 @@ export const ApiService = {
     }
   },
 
-  async submitData(payload: { org: string; category: string; title: string; value: any }) {
+  async submitData(payload: { 
+    org: string; 
+    category: string; 
+    title: string; 
+    value: any;
+    originalTitle?: string;
+    originalDate?: string;
+    originalOrg?: string;
+  }) {
     try {
       const response = await fetch(GOOGLE_SHEET_API_URL, {
         method: 'POST',
@@ -33,7 +41,15 @@ export const ApiService = {
     }
   },
 
-  async updateLogData(payload: { org: string; category: string; title: string; value: any }) {
+  async updateLogData(payload: { 
+    org: string; 
+    category: string; 
+    title: string; 
+    value: any;
+    originalTitle?: string;
+    originalDate?: string;
+    originalOrg?: string;
+  }) {
     try {
       const response = await fetch(GOOGLE_SHEET_API_URL, {
         method: 'POST',
@@ -104,6 +120,21 @@ export const ApiService = {
       return { success: result.result === 'success' };
     } catch (error) {
       console.error('Notice delete error:', error);
+      return { success: false };
+    }
+  },
+
+  async updateNotice(id: string, info: any) {
+    try {
+      const response = await fetch(GOOGLE_SHEET_API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain' },
+        body: JSON.stringify({ action: 'UPDATE_NOTICE', id, info }),
+      });
+      const result = await response.json();
+      return { success: result.result === 'success' };
+    } catch (error) {
+      console.error('Notice update error:', error);
       return { success: false };
     }
   },

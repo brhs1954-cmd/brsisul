@@ -286,6 +286,22 @@ function doPost(e) {
     // 추가 필드가 있을 경우 대비하여 전체 병합
     Object.keys(info).forEach(k => { if (updateMap[k] === undefined) updateMap[k] = info[k]; });
     
+  } else if (action === "UPDATE_NOTICE") {
+    const info = params.info || {};
+    let photoUrl = info.photoUrl || "";
+    let fileUrl = info.fileUrl || "";
+    if (info.photoData && info.photoName) photoUrl = uploadFile(info.photoData, info.photoName, info.photoType, "공지사항_사진");
+    if (info.fileData && info.fileName) fileUrl = uploadFile(info.fileData, info.fileName, info.fileType, "공지사항_첨부");
+    
+    updateMap = {
+      "id": idToUpdate,
+      "title": info.title,
+      "category": info.category,
+      "content": info.content,
+      "isUrgent": info.isUrgent === true || info.isUrgent === "true" ? "true" : "false",
+      "photoUrl": photoUrl || info.photoUrl,
+      "fileUrl": fileUrl || info.fileUrl
+    };
   } else if (action === "UPDATE_EQUIPMENT" || action === "ADD_EQUIPMENT") {
     const info = params.info || {};
     let photoUrl = info.photoUrl || "";
