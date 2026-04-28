@@ -585,21 +585,58 @@ function sendEmailNotifications(category, title, content) {
 
     if (emails.length === 0) return;
 
-    const subject = `[보령학사 알림] ${title}`;
-    const body = `
-본 메일은 보령학사 시설물 통합관리 시스템에서 발송되었습니다.
+    const subject = `[보령학사 시설물 알림] ${category}: ${title}`;
+    const appUrl = "https://brsisul.vercel.app";
+    
+    // Background color based on category
+    const isEmergency = (category === "응급알림");
+    const headerBg = isEmergency ? "#e11d48" : "#2563eb";
+    const typeLabel = isEmergency ? "🚨 응급 상황 알림" : "📢 공지사항 알림";
 
-[알림 내용]
-- 유형: ${category}
-- 제목: ${title}
-- 내용: ${content}
-
-- 발송일시: ${new Date().toLocaleString('ko-KR')}
-
-보령학사 시설물 관리 앱에서 상세 내용을 확인하세요.
+    const htmlBody = `
+      <div style="font-family: 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 16px; overflow: hidden; background-color: #ffffff;">
+        <div style="background-color: ${headerBg}; padding: 30px 20px; text-align: center;">
+          <h1 style="color: #ffffff; margin: 0; font-size: 24px; font-weight: 800; letter-spacing: -0.5px;">${typeLabel}</h1>
+        </div>
+        <div style="padding: 40px 30px;">
+          <div style="margin-bottom: 30px;">
+            <p style="color: #64748b; font-size: 14px; font-weight: 600; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 1px;">알림 제목</p>
+            <h2 style="color: #1e293b; font-size: 20px; font-weight: 800; margin: 0; line-height: 1.4;">${title}</h2>
+          </div>
+          
+          <div style="margin-bottom: 30px; background-color: #f8fafc; padding: 25px; border-radius: 12px; border-left: 4px solid ${headerBg};">
+            <p style="color: #64748b; font-size: 14px; font-weight: 600; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 1px;">상세 내용</p>
+            <div style="color: #334155; font-size: 16px; line-height: 1.6; white-space: pre-wrap;">${content}</div>
+          </div>
+          
+          <div style="text-align: center; margin-top: 40px;">
+            <a href="${appUrl}" style="display: inline-block; background-color: ${headerBg}; color: #ffffff; padding: 16px 32px; border-radius: 12px; text-decoration: none; font-weight: 800; font-size: 16px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);">시설물 관리 시스템 바로가기</a>
+          </div>
+        </div>
+        <div style="background-color: #f1f5f9; padding: 20px; text-align: center;">
+          <p style="color: #94a3b8; font-size: 12px; margin: 0;">본 메일은 보령학사 시설물 통합관리 시스템에서 자동으로 발송되었습니다.</p>
+          <p style="color: #94a3b8; font-size: 12px; margin: 5px 0 0 0;">발송일시: ${new Date().toLocaleString('ko-KR')}</p>
+        </div>
+      </div>
     `;
 
-    GmailApp.sendEmail(emails.join(","), subject, body);
+    const plainBody = `
+[보령학사 시설물 알림]
+${typeLabel}
+
+제목: ${title}
+내용: ${content}
+
+발송일시: ${new Date().toLocaleString('ko-KR')}
+
+아래 링크를 클릭하여 시스템에서 상세 내용을 확인하세요.
+${appUrl}
+    `;
+
+    GmailApp.sendEmail(emails.join(","), subject, plainBody, {
+      htmlBody: htmlBody
+    });
+    
     console.log(`Sent notification for ${category} to ${emails.length} recipients.`);
   } catch (err) {
     console.error("Email notification error: " + err.toString());
