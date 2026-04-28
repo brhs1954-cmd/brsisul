@@ -750,24 +750,28 @@ const App: React.FC = () => {
 
   const handleUpdateLog = async (category: string, id: string, data: any) => {
     try {
-      let title = data.title;
+      const { originalIdentity, ...recordData } = data;
+      let title = recordData.title;
       if (!title) {
         if (category === 'WATER_QUALITY') {
-          title = `${data.org} ${data.recordType === 'cleaning' ? '저수조 청소' : '수질 측정'}`;
+          title = `${recordData.org} ${recordData.recordType === 'cleaning' ? '저수조 청소' : '수질 측정'}`;
         } else {
-          title = `${data.org} ${category} 기록`;
+          title = `${recordData.org} ${category} 기록`;
         }
       }
 
       const result = await ApiService.updateLogData({
-        org: data.org,
+        org: recordData.org,
         category: category,
         title: title,
+        originalTitle: originalIdentity?.title,
+        originalDate: originalIdentity?.date,
+        originalOrg: originalIdentity?.org,
         value: {
-          ...data,
-          fileName: data.fileName || data.file?.name,
-          fileType: data.fileType || data.file?.type,
-          fileData: data.fileData || data.file?.data
+          ...recordData,
+          fileName: recordData.fileName || recordData.file?.name,
+          fileType: recordData.fileType || recordData.file?.type,
+          fileData: recordData.fileData || recordData.file?.data
         }
       });
       if (result.success) {

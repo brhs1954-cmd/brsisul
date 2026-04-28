@@ -39,6 +39,7 @@ const HistoryTable: React.FC<HistoryTableProps> = ({ title, type, facilities, re
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [originalIdentity, setOriginalIdentity] = useState<{org: string, date: string, title: string} | null>(null);
   const [newRecord, setNewRecord] = useState<any>({ 
     recordType: 'measurement',
     org: '', 
@@ -241,11 +242,16 @@ const HistoryTable: React.FC<HistoryTableProps> = ({ title, type, facilities, re
   const handleEditClick = (record: any) => {
     setEditingId(record.id);
     setIsEditMode(true);
+    const org = record.facilityName || record.tankName || record.org || '';
+    const date = record.date || record.period || '';
+    const title = record.title || record.description || '';
+    
+    setOriginalIdentity({ org, date, title });
     setNewRecord({
       recordType: record.recordType || (record.ph ? 'measurement' : 'cleaning'),
-      org: record.facilityName || record.tankName || record.org || '',
-      date: record.date || record.period || '',
-      title: record.title || record.description || '',
+      org,
+      date,
+      title,
       contractor: record.contractor || record.worker || '',
       worker: record.worker || record.contractor || '',
       ph: record.ph || '',
@@ -285,7 +291,7 @@ const HistoryTable: React.FC<HistoryTableProps> = ({ title, type, facilities, re
     }
     
     if (isEditMode && editingId && onUpdate) {
-      onUpdate(editingId, dataToSubmit);
+      onUpdate(editingId, { ...dataToSubmit, originalIdentity });
     } else {
       onAdd?.(dataToSubmit);
     }
@@ -293,6 +299,7 @@ const HistoryTable: React.FC<HistoryTableProps> = ({ title, type, facilities, re
     setIsAddModalOpen(false);
     setIsEditMode(false);
     setEditingId(null);
+    setOriginalIdentity(null);
     setFilePreview(null);
     setNewRecord({ 
       recordType: 'measurement',

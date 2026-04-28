@@ -340,18 +340,42 @@ function doPost(e) {
         const row = data[i];
         let match = false;
         
+        // Helper for flexible matching
+        const isMatch = (sheetVal, paramVal) => {
+          if (!paramVal) return !sheetVal;
+          let s = String(sheetVal || "").trim();
+          let p = String(paramVal || "").trim();
+          
+          // Date handling: try to normalize to yyyy-MM-dd
+          if (sheetVal instanceof Date) {
+            s = Utilities.formatDate(sheetVal, "GMT+9", "yyyy-MM-dd");
+          } else if (s.match(/^\d{4}-\d{2}-\d{2}/)) {
+            s = s.substring(0, 10);
+          }
+          
+          if (p.match(/^\d{4}-\d{2}-\d{2}/)) {
+            p = p.substring(0, 10);
+          }
+          
+          return s === p;
+        };
+
+        const originalTitle = params.originalTitle || params.title;
+        const originalDate = params.originalDate || val.date;
+        const originalOrg = params.originalOrg || params.org;
+        
         if (params.category === "CONSTRUCTION_RESULTS") {
             // Match by year and title and amount
             const yearIndex = headers.indexOf("연도별");
             const titleIndex = headers.indexOf("사업명");
-            if (yearIndex > -1 && titleIndex > -1 && String(row[yearIndex]) === String(val.year) && String(row[titleIndex]) === String(params.title)) {
+            if (yearIndex > -1 && titleIndex > -1 && isMatch(row[yearIndex], originalDate) && isMatch(row[titleIndex], originalTitle)) {
                 match = true;
             }
         } else if (params.category === "WATER_QUALITY") {
             // Match by tank name and date
             const tankIndex = headers.indexOf("저수조 명");
             const dateIndex = headers.indexOf("날짜");
-            if (tankIndex > -1 && dateIndex > -1 && String(row[tankIndex]) === String(params.org) && String(row[dateIndex]) === String(val.date)) {
+            if (tankIndex > -1 && dateIndex > -1 && isMatch(row[tankIndex], originalOrg) && isMatch(row[dateIndex], originalDate)) {
                 match = true;
             }
         } else {
@@ -360,9 +384,9 @@ function doPost(e) {
             const dateIndex = headers.indexOf("날짜 / 기간");
             const titleIndex = headers.indexOf("작업/공사명");
             if (orgIndex > -1 && dateIndex > -1 && titleIndex > -1 && 
-                String(row[orgIndex]) === String(params.org) && 
-                String(row[dateIndex]) === String(val.date) && 
-                String(row[titleIndex]) === String(params.title)) {
+                isMatch(row[orgIndex], originalOrg) && 
+                isMatch(row[dateIndex], originalDate) && 
+                isMatch(row[titleIndex], originalTitle)) {
                 match = true;
             }
         }
