@@ -33,6 +33,21 @@ export const ApiService = {
     }
   },
 
+  async updateLogData(payload: { org: string; category: string; title: string; value: any }) {
+    try {
+      const response = await fetch(GOOGLE_SHEET_API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain' },
+        body: JSON.stringify({ ...payload, action: 'UPDATE_LOG' }),
+      });
+      const result = await response.json();
+      return { success: result.result === 'success', message: result.message };
+    } catch (error) {
+      console.error('Update log error:', error);
+      return { success: false };
+    }
+  },
+
   async savePath(path: any) {
     try {
       const response = await fetch(GOOGLE_SHEET_API_URL, {

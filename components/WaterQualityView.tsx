@@ -28,6 +28,7 @@ interface WaterQualityViewProps {
   equipment: Equipment[];
   waterLogs?: any[];
   onAddLog: (category: string, data: any) => Promise<void>;
+  onUpdateLog?: (id: string, data: any) => Promise<void>;
   onRefresh: () => Promise<void>;
 }
 
@@ -39,7 +40,7 @@ const ORDERED_ORG_NAMES = [
   '충남서부 장애인종합복지관'
 ];
 
-const WaterQualityView: React.FC<WaterQualityViewProps> = ({ facilities, equipment, waterLogs = [], onAddLog, onRefresh }) => {
+const WaterQualityView: React.FC<WaterQualityViewProps> = ({ facilities, equipment, waterLogs = [], onAddLog, onUpdateLog, onRefresh }) => {
   const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isManualAddOpen, setIsManualAddOpen] = useState(false);
@@ -411,6 +412,7 @@ const WaterQualityView: React.FC<WaterQualityViewProps> = ({ facilities, equipme
           facilities={facilities} 
           records={waterLogs}
           onAdd={handleAddWaterLog}
+          onUpdate={onUpdateLog}
           targetOptions={waterTanks.map(t => t.name)}
         />
       </section>

@@ -309,6 +309,93 @@ function doPost(e) {
       targetSheet.appendRow(headers.map(h => updateMap[h] || ""));
       return ContentService.createTextOutput(JSON.stringify({result: "success"})).setMimeType(ContentService.MimeType.JSON);
     }
+  } else if (action === "UPDATE_LOG") {
+    const val = params.value || {};
+    const fileUrl = (val.fileData || val.file?.data) 
+      ? uploadFile(val.fileData || val.file?.data, val.fileName || val.file?.name, val.fileType || val.file?.type, params.org) 
+      : val.fileUrl;
+      
+    let logSheetName = "log";
+    if (params.category === "CONSTRUCTION") logSheetName = "공사관리";
+    else if (params.category === "LANDSCAPING") logSheetName = "조경관리";
+    else if (params.category === "WATER_QUALITY") logSheetName = "수질관리";
+    else if (params.category === "CONSTRUCTION_RESULTS") logSheetName = "공사실적";
+    
+    let logSheet = ss.getSheetByName(logSheetName);
+    if (!logSheet) return ContentService.createTextOutput(JSON.stringify({result: "error", message: "Sheet not found"})).setMimeType(ContentService.MimeType.JSON);
+    
+    const data = logSheet.getDataRange().getValues();
+    const headers = data[0].map(h => String(h).trim());
+    
+    // Find the row to update. 
+    // Since we don't have a reliable ID stored in the sheet yet, we match by key fields (org, date/year, title)
+    // For older records, timestamp might be the best unique identifier if available.
+    let targetRowIndex = -1;
+    
+    for (let i = 1; i < data.length; i++) {
+        const row = data[i];
+        let match = false;
+        
+        if (params.category === "CONSTRUCTION_RESULTS") {
+            // Match by year and title and amount
+            const yearIndex = headers.indexOf("연도별");
+            const titleIndex = headers.indexOf("사업명");
+            if (yearIndex > -1 && titleIndex > -1 && String(row[yearIndex]) === String(val.year) && String(row[titleIndex]) === String(params.title)) {
+                match = true;
+            }
+        } else if (params.category === "WATER_QUALITY") {
+            // Match by tank name and date
+            const tankIndex = headers.indexOf("저수조 명");
+            const dateIndex = headers.indexOf("날짜");
+            if (tankIndex > -1 && dateIndex > -1 && String(row[tankIndex]) === String(params.org) && String(row[dateIndex]) === String(val.date)) {
+                match = true;
+            }
+        } else {
+            // CONSTRUCTION, LANDSCAPING: Match by org, date, and title
+            const orgIndex = headers.indexOf("대상 시설");
+            const dateIndex = headers.indexOf("날짜 / 기간");
+            const titleIndex = headers.indexOf("작업/공사명");
+            if (orgIndex > -1 && dateIndex > -1 && titleIndex > -1 && 
+                String(row[orgIndex]) === String(params.org) && 
+                String(row[dateIndex]) === String(val.date) && 
+                String(row[titleIndex]) === String(params.title)) {
+                match = true;
+            }
+        }
+        
+        if (match) {
+            targetRowIndex = i + 1;
+            break;
+        }
+    }
+    
+    if (targetRowIndex === -1) {
+        // If no match found, append as new instead? Or return error.
+        // User expected edit, so return error for transparency.
+        return ContentService.createTextOutput(JSON.stringify({result: "error", message: "Matching record not found for update"})).setMimeType(ContentService.MimeType.JSON);
+    }
+    
+    // Perform update
+    let dataMap = {};
+    if (params.category === "CONSTRUCTION") {
+      dataMap = { "대상 시설": params.org, "날짜 / 기간": val.date || "", "작업/공사명": params.title || "", "담당자 / 업체": val.contractor || "", "첨부파일": fileUrl };
+    } else if (params.category === "LANDSCAPING") {
+      dataMap = { "대상 시설": params.org, "날짜 / 기간": val.date || "", "작업/공사명": params.title || "", "담당자 / 업체": val.contractor || "", "첨부파일": fileUrl };
+    } else if (params.category === "WATER_QUALITY") {
+      dataMap = { "저수조 명": params.org, "날짜": val.date || "", "pH": val.ph || "", "잔류염소": val.chlorine || "", "탁도": val.turbidity || "", "수온": val.temperature || "", "담당자": val.worker || "", "비고/청소내용": val.remarks || "", "첨부파일": fileUrl };
+    } else if (params.category === "CONSTRUCTION_RESULTS") {
+      dataMap = { "시설명": val.type || "", "연도별": val.year || "", "사업명": params.title || "", "사업량": val.amount || "", "공사업자": val.contractor || "", "주요내용": val.content || "", "예산액(설계)": val.budget || "", "계약액": val.contractPrice || "", "설계변경": val.designChange || "", "정산액": val.settlement || "", "비고": val.remarks || "", "첨부파일": fileUrl };
+    }
+    
+    headers.forEach((h, colIdx) => {
+        if (dataMap[h] !== undefined) {
+            logSheet.getRange(targetRowIndex, colIdx + 1).setValue(dataMap[h]);
+        } else if ((h === "첨부이미지" || h === "첨부" || h === "파일") && dataMap["첨부파일"] !== undefined) {
+            logSheet.getRange(targetRowIndex, colIdx + 1).setValue(dataMap["첨부파일"]);
+        }
+    });
+    
+    return ContentService.createTextOutput(JSON.stringify({result: "success"})).setMimeType(ContentService.MimeType.JSON);
   } else if (action === "LOG") {
     const val = params.value || {};
     const fileUrl = uploadFile(val.fileData || val.file?.data, val.fileName || val.file?.name, val.fileType || val.file?.type, params.org);

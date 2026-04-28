@@ -747,6 +747,40 @@ const App: React.FC = () => {
     }
   };
 
+  const handleUpdateLog = async (category: string, id: string, data: any) => {
+    try {
+      let title = data.title;
+      if (!title) {
+        if (category === 'WATER_QUALITY') {
+          title = `${data.org} ${data.recordType === 'cleaning' ? '저수조 청소' : '수질 측정'}`;
+        } else {
+          title = `${data.org} ${category} 기록`;
+        }
+      }
+
+      const result = await ApiService.updateLogData({
+        org: data.org,
+        category: category,
+        title: title,
+        value: {
+          ...data,
+          fileName: data.fileName || data.file?.name,
+          fileType: data.fileType || data.file?.type,
+          fileData: data.fileData || data.file?.data
+        }
+      });
+      if (result.success) {
+        alert('기록이 수정되었습니다.');
+        refreshDataFromSheets();
+      } else {
+        alert('수정 중 오류가 발생했습니다: ' + (result.message || '알 수 없는 오류'));
+      }
+    } catch (error) {
+      console.error(`Update ${category} error:`, error);
+      alert('서버 통신 중 오류가 발생했습니다.');
+    }
+  };
+
   const renderContent = () => {
     switch (activeTab) {
       case 'home': return <Dashboard facilities={facilities} contacts={contacts} notices={notices} onNoticeClick={(n) => setSelectedNotice(n)} onAction={(tab) => setActiveTab(tab)} />;
@@ -801,10 +835,10 @@ const App: React.FC = () => {
         />
       );
       case 'vehicle': return <VehicleManager vehicles={rawVehicles} onRefresh={refreshDataFromSheets} />;
-      case 'landscaping': return <LandscapingView facilities={facilities} plans={landscapingPlans} logs={landscapingLogs} onRefresh={refreshDataFromSheets} onAdd={handleAddLandscaping} />;
-      case 'water': return <WaterQualityView facilities={facilities} equipment={rawEquipment} waterLogs={waterLogs} onAddLog={handleAddLog} onRefresh={refreshDataFromSheets} />;
-      case 'construction': return <HistoryTable title="공사 및 대수선 관리 실적" type="construction" facilities={facilities} records={constructionLogs} onAdd={handleAddConstruction} />;
-      case 'construction_results': return <HistoryTable title="공사실적 (연도별 전체 리스트)" type="construction_results" facilities={facilities} records={constructionResultsLogs} onAdd={(data) => handleAddLog('CONSTRUCTION_RESULTS', data)} />;
+      case 'landscaping': return <LandscapingView facilities={facilities} plans={landscapingPlans} logs={landscapingLogs} onRefresh={refreshDataFromSheets} onAdd={handleAddLandscaping} onUpdate={(id, data) => handleUpdateLog('LANDSCAPING', id, data)} />;
+      case 'water': return <WaterQualityView facilities={facilities} equipment={rawEquipment} waterLogs={waterLogs} onAddLog={handleAddLog} onUpdateLog={(id, data) => handleUpdateLog('WATER_QUALITY', id, data)} onRefresh={refreshDataFromSheets} />;
+      case 'construction': return <HistoryTable title="공사 및 대수선 관리 실적" type="construction" facilities={facilities} records={constructionLogs} onAdd={handleAddConstruction} onUpdate={(id, data) => handleUpdateLog('CONSTRUCTION', id, data)} />;
+      case 'construction_results': return <HistoryTable title="공사실적 (연도별 전체 리스트)" type="construction_results" facilities={facilities} records={constructionResultsLogs} onAdd={(data) => handleAddLog('CONSTRUCTION_RESULTS', data)} onUpdate={(id, data) => handleUpdateLog('CONSTRUCTION_RESULTS', id, data)} />;
       case 'admin': return (
         <div className="space-y-8 animate-in fade-in duration-700">
           <div className="p-8 bg-white rounded-3xl border border-slate-100 shadow-sm">

@@ -1,7 +1,7 @@
 
 import React, { useState, useRef, useMemo } from 'react';
 import { Hotspot } from '../types';
-import { Search, Filter, Download, MoreVertical, Calendar, User, Tag, Plus, X, Paperclip, ExternalLink, Eye, MapPin, HardHat, Droplets, Activity, Thermometer, CheckCircle2 } from 'lucide-react';
+import { Search, Filter, Download, MoreVertical, Calendar, User, Tag, Plus, X, Paperclip, ExternalLink, Eye, MapPin, HardHat, Droplets, Activity, Thermometer, CheckCircle2, Edit } from 'lucide-react';
 import { getCurrentKSTDateString } from '../lib/dateUtils';
 import { compressImage, getDisplayImageUrl } from '../lib/imageUtils';
 
@@ -22,6 +22,7 @@ interface HistoryTableProps {
   facilities: Hotspot[];
   records?: any[]; // 추가: 로그 데이터를 직접 전달받을 수 있도록 함
   onAdd?: (data: any) => void;
+  onUpdate?: (id: string, data: any) => void;
   targetOptions?: string[];
 }
 
@@ -33,9 +34,11 @@ const ORDERED_ORG_NAMES = [
   '충남서부 장애인종합복지관'
 ];
 
-const HistoryTable: React.FC<HistoryTableProps> = ({ title, type, facilities, records: propRecords, onAdd, targetOptions }) => {
+const HistoryTable: React.FC<HistoryTableProps> = ({ title, type, facilities, records: propRecords, onAdd, onUpdate, targetOptions }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [newRecord, setNewRecord] = useState<any>({ 
     recordType: 'measurement',
     org: '', 
@@ -235,6 +238,36 @@ const HistoryTable: React.FC<HistoryTableProps> = ({ title, type, facilities, re
     reader.readAsDataURL(file);
   };
 
+  const handleEditClick = (record: any) => {
+    setEditingId(record.id);
+    setIsEditMode(true);
+    setNewRecord({
+      recordType: record.recordType || (record.ph ? 'measurement' : 'cleaning'),
+      org: record.facilityName || record.tankName || record.org || '',
+      date: record.date || record.period || '',
+      title: record.title || record.description || '',
+      contractor: record.contractor || record.worker || '',
+      worker: record.worker || record.contractor || '',
+      ph: record.ph || '',
+      chlorine: record.chlorine || '',
+      turbidity: record.turbidity || '',
+      temperature: record.temperature || '',
+      remarks: record.remarks || '',
+      year: record.year || '',
+      amount: record.amount || '',
+      content: record.content || '',
+      budget: record.budget || '',
+      contractPrice: record.contractPrice || '',
+      designChange: record.designChange || '',
+      settlement: record.settlement || '',
+      type: record.type || '',
+      file: null,
+      fileUrl: record.fileUrl || ''
+    });
+    setFilePreview(null);
+    setIsAddModalOpen(true);
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (type !== 'construction_results' && !newRecord.org) {
@@ -251,8 +284,15 @@ const HistoryTable: React.FC<HistoryTableProps> = ({ title, type, facilities, re
         dataToSubmit.org = '시설 전체';
     }
     
-    onAdd?.(dataToSubmit);
+    if (isEditMode && editingId && onUpdate) {
+      onUpdate(editingId, dataToSubmit);
+    } else {
+      onAdd?.(dataToSubmit);
+    }
+
     setIsAddModalOpen(false);
+    setIsEditMode(false);
+    setEditingId(null);
     setFilePreview(null);
     setNewRecord({ 
       recordType: 'measurement',
@@ -287,7 +327,34 @@ const HistoryTable: React.FC<HistoryTableProps> = ({ title, type, facilities, re
         <div className="flex gap-2">
           {(type === 'construction' || type === 'landscaping' || type === 'water_quality' || type === 'construction_results') && (
             <button 
-              onClick={() => setIsAddModalOpen(true)}
+              onClick={() => {
+                setIsEditMode(false);
+                setEditingId(null);
+                setNewRecord({ 
+                  recordType: 'measurement',
+                  org: '', 
+                  date: getCurrentKSTDateString(), 
+                  title: '', 
+                  contractor: '',
+                  worker: '',
+                  ph: '',
+                  chlorine: '',
+                  turbidity: '',
+                  temperature: '',
+                  remarks: '',
+                  year: '',
+                  amount: '',
+                  content: '',
+                  budget: '',
+                  contractPrice: '',
+                  designChange: '',
+                  settlement: '',
+                  type: '',
+                  file: null,
+                  fileUrl: ''
+                });
+                setIsAddModalOpen(true);
+              }}
               className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-xl text-sm font-bold hover:bg-blue-700 transition-colors shadow-sm"
             >
               <Plus className="w-4 h-4 mr-2" /> {type === 'water_quality' ? '측정 기록 추가' : '실적 추가'}
@@ -415,17 +482,28 @@ const HistoryTable: React.FC<HistoryTableProps> = ({ title, type, facilities, re
                     })()}
                   </td>
                   <td className="px-6 py-4 text-right">
-                    <button 
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setSelectedRecord(record);
-                        console.log("Record selected for detail view:", record);
-                      }}
-                      className="inline-flex items-center px-3 py-1.5 bg-slate-100 text-slate-500 rounded-xl hover:bg-blue-600 hover:text-white transition-all shadow-sm font-black text-[10px]"
-                      title="상세 정보 보기"
-                    >
-                      <Eye className="w-3.5 h-3.5 mr-1.5" /> 상세보기
-                    </button>
+                    <div className="flex justify-end gap-2">
+                      <button 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleEditClick(record);
+                        }}
+                        className="inline-flex items-center px-3 py-1.5 bg-amber-50 text-amber-600 rounded-xl hover:bg-amber-600 hover:text-white transition-all shadow-sm font-black text-[10px]"
+                        title="기록 수정하기"
+                      >
+                        <Edit className="w-3.5 h-3.5 mr-1.5" /> 수정
+                      </button>
+                      <button 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedRecord(record);
+                        }}
+                        className="inline-flex items-center px-3 py-1.5 bg-slate-100 text-slate-500 rounded-xl hover:bg-blue-600 hover:text-white transition-all shadow-sm font-black text-[10px]"
+                        title="상세 정보 보기"
+                      >
+                        <Eye className="w-3.5 h-3.5 mr-1.5" /> 상세보기
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -447,10 +525,17 @@ const HistoryTable: React.FC<HistoryTableProps> = ({ title, type, facilities, re
           <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]">
             <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/50 flex-shrink-0">
               <h3 className="text-lg font-black text-slate-900">
-                {type === 'construction' ? '공사 실적 추가' : 
-                 type === 'landscaping' ? '조경 실적 추가' : 
-                 type === 'construction_results' ? '공사 실적(사업) 추가' :
-                 type === 'water_quality' ? '수질 측정 기록 추가' : '실적 추가'}
+                {isEditMode ? (
+                  type === 'construction' ? '공사 실적 수정' : 
+                  type === 'landscaping' ? '조경 실적 수정' : 
+                  type === 'construction_results' ? '공사 실적(사업) 수정' :
+                  type === 'water_quality' ? '수질 측정 기록 수정' : '실적 수정'
+                ) : (
+                  type === 'construction' ? '공사 실적 추가' : 
+                  type === 'landscaping' ? '조경 실적 추가' : 
+                  type === 'construction_results' ? '공사 실적(사업) 추가' :
+                  type === 'water_quality' ? '수질 측정 기록 추가' : '실적 추가'
+                )}
               </h3>
               <button 
                 type="button"
@@ -794,7 +879,7 @@ const HistoryTable: React.FC<HistoryTableProps> = ({ title, type, facilities, re
                   disabled={isUploading}
                   className={`flex-[2] px-4 py-3 bg-blue-600 text-white rounded-2xl text-sm font-bold hover:bg-blue-700 transition-colors shadow-lg shadow-blue-200 ${isUploading ? 'opacity-50 cursor-not-allowed' : ''}`}
                 >
-                  저장하기
+                  {isEditMode ? '수정 내용 저장' : '저장하기'}
                 </button>
               </div>
             </form>
