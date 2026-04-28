@@ -11,3 +11,18 @@ body {
   font-family: var(--font-sans);
   background-color: #f8fafc;
 }
+
+/* Pull to Refresh Customization */
+.ptr-element {
+  background-color: #f8fafc !important;
+  transition: height 0.3s ease !important;
+}
+
+.ptr-element > div {
+  margin: 0 !important;
+}
+
+/* Ensure smooth scrolling on components */
+.overflow-y-auto {
+  -webkit-overflow-scrolling: touch;
+}
