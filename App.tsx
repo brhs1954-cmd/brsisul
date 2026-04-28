@@ -47,6 +47,7 @@ import EquipmentEditModal from './components/EquipmentEditModal';
 import PullToRefresh from 'react-simple-pull-to-refresh';
 import { ApiService } from './api';
 import { formatDateToKST } from './lib/dateUtils';
+import { getDisplayImageUrl } from './lib/imageUtils';
 
 export interface ExtendedContactInfo extends ContactInfo {
   orgName: string;
@@ -865,7 +866,14 @@ const App: React.FC = () => {
       <aside className={`fixed inset-y-0 left-0 z-50 w-64 bg-white border-r border-slate-200 md:relative md:translate-x-0 transition-transform duration-300 ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}`}>
         <div className="flex flex-col h-full">
           <div className="p-6 border-b border-slate-100 flex items-center space-x-3">
-            <div className="bg-blue-600 p-2 rounded-xl text-white"><Activity className="w-6 h-6" /></div>
+            <div className="w-10 h-10 rounded-xl overflow-hidden shadow-sm border border-slate-100 flex items-center justify-center bg-white">
+              <img 
+                src={getDisplayImageUrl("https://drive.google.com/uc?export=view&id=1IhXDEQqanaawhtFsFlh8rvcB-KPo_WAS")} 
+                alt="보령학사 로고" 
+                className="w-full h-full object-contain"
+                referrerPolicy="no-referrer"
+              />
+            </div>
             <h1 className="font-bold text-slate-900 leading-tight">Boryeong Haksa</h1>
           </div>
           <nav className="flex-1 px-3 py-6 space-y-1 overflow-y-auto">
