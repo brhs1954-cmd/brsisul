@@ -323,6 +323,12 @@ const InteractiveMap: React.FC<InteractiveMapProps> = ({
             className={`absolute group transform -translate-x-1/2 -translate-y-1/2 transition-all duration-75 z-30 ${draggingItem?.id === facility.id ? 'scale-150 z-50' : ''}`}
             style={{ left: `${facility.x}%`, top: `${facility.y}%` }}
           >
+            {/* Hover Label */}
+            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-slate-900/90 text-white text-[9px] font-black rounded-lg opacity-0 group-hover:opacity-100 whitespace-nowrap pointer-events-none transition-all transform translate-y-1 group-hover:translate-y-0 shadow-xl z-[60]">
+              {facility.name}
+              <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-slate-900/90"></div>
+            </div>
+
             <button
               onMouseDown={(e) => handleMouseDown(e, facility.id, 'building')}
               onClick={() => !isEditMode && onHotspotClick(facility)}
