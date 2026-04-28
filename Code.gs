@@ -227,6 +227,10 @@ function doPost(e) {
     if (val.photoData && val.photoName) photoUrl = uploadFile(val.photoData, val.photoName, val.photoType, "공지사항_사진");
     if (val.fileData && val.fileName) fileUrl = uploadFile(val.fileData, val.fileName, val.fileType, "공지사항_첨부");
     targetSheet.appendRow([newId, val.title || params.title, val.date || Utilities.formatDate(new Date(), "GMT+9", "yyyy-MM-dd"), val.isUrgent ? "true" : "false", val.category || "시설", val.content || "", photoUrl, fileUrl]);
+    
+    // 이메일 발송
+    sendEmailNotifications("공지사항", val.title || params.title, val.content || "새로운 공지사항이 등록되었습니다.");
+    
     return ContentService.createTextOutput(JSON.stringify({result: "success"})).setMimeType(ContentService.MimeType.JSON);
   }
 
@@ -467,6 +471,10 @@ function doPost(e) {
         "title": params.title,
         "value": JSON.stringify(val)
       };
+
+      if (params.category === "EMERGENCY_ALERT") {
+        sendEmailNotifications("응급알림", params.title, val.message || "응급 상황이 발생했습니다.");
+      }
     }
     
     let logSheet = ss.getSheetByName(logSheetName);
@@ -511,5 +519,49 @@ function doPost(e) {
   return ContentService.createTextOutput(JSON.stringify({result: "success"})).setMimeType(ContentService.MimeType.JSON);
   } catch (err) {
     return ContentService.createTextOutput(JSON.stringify({result: "error", message: err.toString()})).setMimeType(ContentService.MimeType.JSON);
+  }
+}
+
+/**
+ * Helper to send email notifications to all emails in column F of 'info' sheet
+ */
+function sendEmailNotifications(category, title, content) {
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const infoSheet = ss.getSheetByName("info");
+    if (!infoSheet) return;
+
+    const data = infoSheet.getDataRange().getValues();
+    if (data.length < 2) return;
+
+    // F열 (index 5) 에서 이메일 추출
+    const emails = [];
+    for (let i = 1; i < data.length; i++) {
+        const email = String(data[i][5] || "").trim();
+        if (email && email.indexOf("@") > -1) {
+            emails.push(email);
+        }
+    }
+
+    if (emails.length === 0) return;
+
+    const subject = `[보령학사 알림] ${title}`;
+    const body = `
+본 메일은 보령학사 시설물 통합관리 시스템에서 발송되었습니다.
+
+[알림 내용]
+- 유형: ${category}
+- 제목: ${title}
+- 내용: ${content}
+
+- 발송일시: ${new Date().toLocaleString('ko-KR')}
+
+보령학사 시설물 관리 앱에서 상세 내용을 확인하세요.
+    `;
+
+    GmailApp.sendEmail(emails.join(","), subject, body);
+    console.log(`Sent notification for ${category} to ${emails.length} recipients.`);
+  } catch (err) {
+    console.error("Email notification error: " + err.toString());
   }
 }

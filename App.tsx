@@ -24,7 +24,8 @@ import {
   Lock,
   UserCheck,
   Globe,
-  Waypoints
+  Waypoints,
+  FileSpreadsheet
 } from 'lucide-react';
 import { FACILITIES as INITIAL_FACILITIES, NOTICES as INITIAL_NOTICES } from './data';
 import { Hotspot, FacilityStatus, ContactInfo, Vehicle, Equipment, Notice, FacilityPath, PathPoint } from './types';
@@ -875,9 +876,21 @@ const App: React.FC = () => {
              <button onClick={() => setIsMobileMenuOpen(true)} className="p-2 bg-white rounded-xl shadow-sm border border-slate-100"><Menu className="w-6 h-6" /></button>
           </div>
           <div className="flex justify-between items-center mb-6">
-            <h2 className="text-xl font-black text-slate-800 tracking-tight">
-              {navigation.find(n => n.id === activeTab)?.name}
-            </h2>
+            <div className="flex items-center gap-4">
+              <h2 className="text-xl font-black text-slate-800 tracking-tight">
+                {navigation.find(n => n.id === activeTab)?.name}
+              </h2>
+              {activeTab === 'home' && (
+                <a 
+                  href="https://docs.google.com/spreadsheets/d/1ODPGSImhLnwbu89bWQHLyu0zAaQJyvJs11yHiAr1-vA/edit?gid=643170951#gid=643170951"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center px-4 py-2 bg-emerald-50 text-emerald-600 rounded-xl text-xs font-black border border-emerald-100 hover:bg-emerald-600 hover:text-white transition-all shadow-sm"
+                >
+                  <FileSpreadsheet className="w-3.5 h-3.5 mr-1.5" /> 구글시트로 가기
+                </a>
+              )}
+            </div>
           </div>
           {renderContent()}
         </div>
