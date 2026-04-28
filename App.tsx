@@ -43,6 +43,7 @@ import VehicleManager from './components/VehicleManager';
 import GoogleSheetsIntegration from './components/GoogleSheetsIntegration';
 import NoticeManager from './components/NoticeManager'; 
 import NoticeDetailModal from './components/NoticeDetailModal'; 
+import EquipmentEditModal from './components/EquipmentEditModal'; 
 import { ApiService } from './api';
 import { formatDateToKST } from './lib/dateUtils';
 
@@ -55,6 +56,7 @@ const App: React.FC = () => {
   const [selectedFacility, setSelectedFacility] = useState<Hotspot | null>(null);
   const [selectedEquipment, setSelectedEquipment] = useState<Equipment | null>(null);
   const [selectedNotice, setSelectedNotice] = useState<Notice | null>(null); 
+  const [editingEquipment, setEditingEquipment] = useState<Equipment | null>(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isInitialSyncing, setIsInitialSyncing] = useState(true);
   const [isMapEditMode, setIsMapEditMode] = useState(false);
@@ -841,7 +843,7 @@ const App: React.FC = () => {
       );
       case 'vehicle': return <VehicleManager vehicles={rawVehicles} onRefresh={refreshDataFromSheets} />;
       case 'landscaping': return <LandscapingView facilities={facilities} plans={landscapingPlans} logs={landscapingLogs} onRefresh={refreshDataFromSheets} onAdd={handleAddLandscaping} onUpdate={(id, data) => handleUpdateLog('LANDSCAPING', id, data)} />;
-      case 'water': return <WaterQualityView facilities={facilities} equipment={rawEquipment} waterLogs={waterLogs} onAddLog={handleAddLog} onUpdateLog={(id, data) => handleUpdateLog('WATER_QUALITY', id, data)} onRefresh={refreshDataFromSheets} />;
+      case 'water': return <WaterQualityView facilities={facilities} equipment={rawEquipment} waterLogs={waterLogs} onAddLog={handleAddLog} onUpdateLog={(id, data) => handleUpdateLog('WATER_QUALITY', id, data)} onRefresh={refreshDataFromSheets} onEditEquipment={(eq) => setEditingEquipment(eq)} />;
       case 'construction': return <HistoryTable title="공사 및 대수선 관리 실적" type="construction" facilities={facilities} records={constructionLogs} onAdd={handleAddConstruction} onUpdate={(id, data) => handleUpdateLog('CONSTRUCTION', id, data)} />;
       case 'construction_results': return <HistoryTable title="공사실적 (연도별 전체 리스트)" type="construction_results" facilities={facilities} records={constructionResultsLogs} onAdd={(data) => handleAddLog('CONSTRUCTION_RESULTS', data)} onUpdate={(id, data) => handleUpdateLog('CONSTRUCTION_RESULTS', id, data)} />;
       case 'admin': return (
@@ -908,6 +910,16 @@ const App: React.FC = () => {
       )}
       {selectedEquipment && <EquipmentDetailModal equipment={selectedEquipment} onClose={() => setSelectedEquipment(null)} />}
       {selectedNotice && <NoticeDetailModal notice={selectedNotice} onClose={() => setSelectedNotice(null)} />}
+      {editingEquipment && (
+        <EquipmentEditModal 
+          equipment={editingEquipment} 
+          onClose={() => setEditingEquipment(null)} 
+          onSave={async () => {
+            await refreshDataFromSheets();
+            setEditingEquipment(null);
+          }} 
+        />
+      )}
     </div>
   );
 };

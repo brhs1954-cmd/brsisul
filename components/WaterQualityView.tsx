@@ -17,7 +17,8 @@ import {
   Building2,
   Calendar,
   Plus,
-  Paperclip
+  Paperclip,
+  Settings
 } from 'lucide-react';
 import HistoryTable from './HistoryTable';
 import { getCurrentKSTDateString } from '../lib/dateUtils';
@@ -30,6 +31,7 @@ interface WaterQualityViewProps {
   onAddLog: (category: string, data: any) => Promise<void>;
   onUpdateLog?: (id: string, data: any) => Promise<void>;
   onRefresh: () => Promise<void>;
+  onEditEquipment?: (equipment: Equipment) => void;
 }
 
 const ORDERED_ORG_NAMES = [
@@ -40,7 +42,7 @@ const ORDERED_ORG_NAMES = [
   '충남서부 장애인종합복지관'
 ];
 
-const WaterQualityView: React.FC<WaterQualityViewProps> = ({ facilities, equipment, waterLogs = [], onAddLog, onUpdateLog, onRefresh }) => {
+const WaterQualityView: React.FC<WaterQualityViewProps> = ({ facilities, equipment, waterLogs = [], onAddLog, onUpdateLog, onRefresh, onEditEquipment }) => {
   const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isManualAddOpen, setIsManualAddOpen] = useState(false);
@@ -269,10 +271,19 @@ const WaterQualityView: React.FC<WaterQualityViewProps> = ({ facilities, equipme
               <div key={`${tank.id}-${index}`} className="bg-white rounded-[2.5rem] overflow-hidden border border-slate-100 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all group flex flex-col">
                 <div className="bg-slate-900 p-6 text-white flex justify-between items-center">
                   <div>
-                    <div className="flex items-center gap-2">
-                      <h3 className="font-black text-lg tracking-tight">{tank.name}</h3>
-                      <span className="px-2 py-0.5 bg-blue-600 text-[9px] font-black rounded uppercase">Active Asset</span>
-                    </div>
+                      <div className="flex items-center gap-2">
+                        <h3 className="font-black text-lg tracking-tight">{tank.name}</h3>
+                        <span className="px-2 py-0.5 bg-blue-600 text-[9px] font-black rounded uppercase">Active Asset</span>
+                        {onEditEquipment && (
+                          <button 
+                            onClick={() => onEditEquipment(tank)}
+                            className="p-1.5 bg-slate-800 hover:bg-slate-700 rounded-lg text-slate-400 hover:text-white transition-all ml-1"
+                            title="저수조 자산 정보 수정 및 사진 업로드"
+                          >
+                            <Settings className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </div>
                     <p className="text-[10px] text-slate-400 flex items-center mt-1 font-bold">
                       <Clock className="w-3 h-3 mr-1" /> 최종 측정: {metrics.date}
                     </p>
