@@ -19,9 +19,13 @@ import {
   MoreHorizontal,
   ExternalLink,
   MapPin,
-  Eye
+  Eye,
+  Maximize2,
+  X,
+  Image as ImageIcon
 } from 'lucide-react';
 import BuildingEditModal from './BuildingEditModal';
+import { getDisplayImageUrl } from '../lib/imageUtils';
 
 interface BuildingManagerProps {
   facilities: Hotspot[];
@@ -35,6 +39,7 @@ const BuildingManager: React.FC<BuildingManagerProps> = ({ facilities, onRefresh
   const [editingBuilding, setEditingBuilding] = useState<Hotspot | null>(null);
   const [initialEditSection, setInitialEditSection] = useState<'basic' | 'detail'>('basic');
   const [searchQuery, setSearchQuery] = useState('');
+  const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
 
   const handleManualSync = async () => {
     setIsSyncing(true);
@@ -138,11 +143,40 @@ const BuildingManager: React.FC<BuildingManagerProps> = ({ facilities, onRefresh
                       
                       {/* Name & Date */}
                       <td className="px-6 py-5">
-                        <div className="flex flex-col">
-                          <span className="text-sm font-black text-slate-800 group-hover:text-blue-600 transition-colors">{facility.name}</span>
-                          <span className="text-[10px] font-bold text-slate-400 flex items-center mt-0.5">
-                            <Clock className="w-2.5 h-2.5 mr-1" /> {facility.buildingInfo?.completionDate || '준공일 미상'}
-                          </span>
+                        <div className="flex items-center">
+                          <button 
+                            onClick={() => {
+                              const url = getDisplayImageUrl(facility.buildingInfo?.photoUrl);
+                              if (url) setPreviewImageUrl(url);
+                            }}
+                            className="w-12 h-12 bg-slate-100 rounded-xl mr-4 overflow-hidden flex items-center justify-center border border-slate-200 group-hover:border-blue-400 group-hover:shadow-lg transition-all shadow-inner relative cursor-zoom-in shrink-0"
+                            title="사진 크게 보기"
+                          >
+                            {facility.buildingInfo?.photoUrl ? (
+                              <img 
+                                src={getDisplayImageUrl(facility.buildingInfo.photoUrl)!} 
+                                alt={facility.name} 
+                                className="w-full h-full object-cover" 
+                                referrerPolicy="no-referrer"
+                                onError={(e) => {
+                                  e.currentTarget.style.display = 'none';
+                                  e.currentTarget.parentElement?.querySelector('.fallback-icon')?.classList.remove('hidden');
+                                }}
+                              />
+                            ) : null}
+                            <div className={`fallback-icon ${facility.buildingInfo?.photoUrl ? 'hidden' : ''}`}>
+                               <Building2 className="w-5 h-5 text-slate-300" />
+                            </div>
+                            <div className="absolute inset-0 bg-slate-900/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                               <Maximize2 className="w-4 h-4 text-white" />
+                            </div>
+                          </button>
+                          <div className="flex flex-col">
+                            <span className="text-sm font-black text-slate-800 group-hover:text-blue-600 transition-colors tracking-tight">{facility.name}</span>
+                            <span className="text-[10px] font-bold text-slate-400 flex items-center mt-0.5">
+                              <Clock className="w-2.5 h-2.5 mr-1" /> {facility.buildingInfo?.completionDate || '준공일 미상'}
+                            </span>
+                          </div>
                         </div>
                       </td>
 
@@ -253,6 +287,34 @@ const BuildingManager: React.FC<BuildingManagerProps> = ({ facilities, onRefresh
             setEditingBuilding(null);
           }} 
         />
+      )}
+
+      {/* Photo Lightbox */}
+      {previewImageUrl && (
+        <div 
+          className="fixed inset-0 z-[100] flex items-center justify-center p-4 animate-in fade-in duration-300"
+          onClick={() => setPreviewImageUrl(null)}
+        >
+          <div className="absolute inset-0 bg-slate-900/90 backdrop-blur-xl"></div>
+          <div className="relative max-w-5xl w-full max-h-[90vh] flex flex-col items-center">
+            <button 
+              className="absolute -top-12 right-0 text-white hover:text-blue-400 transition-colors flex items-center gap-2 font-black text-sm"
+              onClick={() => setPreviewImageUrl(null)}
+            >
+              <X className="w-6 h-6" /> 닫기
+            </button>
+            <img 
+              src={previewImageUrl} 
+              alt="건축물 확대 사진" 
+              className="w-full h-full object-contain rounded-3xl shadow-2xl animate-in zoom-in duration-300 border-4 border-white/10"
+              referrerPolicy="no-referrer"
+              onClick={(e) => e.stopPropagation()}
+            />
+            <div className="mt-6 text-white/50 text-xs font-bold uppercase tracking-[0.2em]">
+              Boryeong Haksa Building Master View
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
