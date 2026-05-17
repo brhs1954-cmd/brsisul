@@ -20,9 +20,11 @@ import {
   Maximize2,
   X,
   PlusCircle,
-  Eye
+  Eye,
+  QrCode
 } from 'lucide-react';
 import EquipmentEditModal from './EquipmentEditModal';
+import QRCodeModal from './QRCodeModal';
 import { getDisplayImageUrl } from '../lib/imageUtils';
 
 interface EquipmentManagerProps {
@@ -36,6 +38,7 @@ const EquipmentManager: React.FC<EquipmentManagerProps> = ({ equipment, onRefres
   const [searchQuery, setSearchQuery] = useState('');
   const [editingEq, setEditingEq] = useState<Equipment | null>(null);
   const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
+  const [qrItem, setQrItem] = useState<Equipment | null>(null);
 
   const filteredEquipment = useMemo(() => {
     const term = searchQuery.trim().toLowerCase();
@@ -127,6 +130,7 @@ const EquipmentManager: React.FC<EquipmentManagerProps> = ({ equipment, onRefres
                 <th className="px-6 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">관리주체</th>
                 <th className="px-6 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">설치 및 주기</th>
                 <th className="px-6 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">주요 제원</th>
+                <th className="px-4 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">QR</th>
                 <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">기능</th>
               </tr>
             </thead>
@@ -196,6 +200,15 @@ const EquipmentManager: React.FC<EquipmentManagerProps> = ({ equipment, onRefres
                           {eq.specs || '제원 정보 없음'}
                         </p>
                       </td>
+                      <td className="px-4 py-6 text-center">
+                        <button 
+                          onClick={() => setQrItem(eq)}
+                          className="p-2.5 bg-slate-100 text-slate-500 hover:bg-amber-100 hover:text-amber-600 rounded-xl transition-all shadow-sm"
+                          title="설비 및 시설물 QR 코드 생성"
+                        >
+                          <QrCode className="w-4 h-4" />
+                        </button>
+                      </td>
                       <td className="px-8 py-6 text-right">
                         <div className="flex items-center justify-end space-x-2">
                           <button 
@@ -235,6 +248,15 @@ const EquipmentManager: React.FC<EquipmentManagerProps> = ({ equipment, onRefres
           </table>
         </div>
       </div>
+
+      {qrItem && (
+        <QRCodeModal 
+          title={qrItem.name} 
+          id={qrItem.id} 
+          type="equipment" 
+          onClose={() => setQrItem(null)} 
+        />
+      )}
 
       {/* Photo Lightbox (확대 팝업) */}
       {previewImageUrl && (

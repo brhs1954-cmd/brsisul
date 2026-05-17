@@ -79,6 +79,55 @@ const App: React.FC = () => {
   const [constructionResultsLogs, setConstructionResultsLogs] = useState<any[]>([]);
   const [landscapingLogs, setLandscapingLogs] = useState<any[]>([]);
 
+  // Deep linking for QR codes
+  useEffect(() => {
+    const handleDeepLink = () => {
+      const hash = window.location.hash;
+      if (!hash || hash === '#') return;
+
+      console.log('Processing deep link hash:', hash);
+
+      // Support format: #building?id=k1 or #equipment?id=e1
+      const queryIndex = hash.indexOf('?');
+      const typePart = queryIndex > -1 ? hash.substring(1, queryIndex) : hash.substring(1);
+      
+      let id = null;
+      if (queryIndex > -1) {
+        const params = new URLSearchParams(hash.substring(queryIndex + 1));
+        id = params.get('id');
+      }
+
+      if (id) {
+        if (typePart === 'building') {
+          const facility = facilities.find(f => f.id === id);
+          if (facility) {
+             console.log('Deep link matched building:', id);
+             setActiveTab('building');
+             setSelectedFacility(facility);
+             // Clear hash to prevent re-opening on tab changes
+             window.history.replaceState(null, '', window.location.pathname + window.location.search);
+          }
+        } else if (typePart === 'equipment') {
+          const eq = rawEquipment.find(e => e.id === id);
+          if (eq) {
+             console.log('Deep link matched equipment:', id);
+             setActiveTab('equipment');
+             setSelectedEquipment(eq);
+             window.history.replaceState(null, '', window.location.pathname + window.location.search);
+          }
+        }
+      }
+    };
+
+    // Check on initial load and when data is updated
+    if (facilities.length > 0 || rawEquipment.length > 0) {
+      handleDeepLink();
+    }
+
+    window.addEventListener('hashchange', handleDeepLink);
+    return () => window.removeEventListener('hashchange', handleDeepLink);
+  }, [facilities, rawEquipment]);
+
   // 디바운스 처리를 위한 타이머 레프
   const updateTimerRef = React.useRef<NodeJS.Timeout | null>(null);
 

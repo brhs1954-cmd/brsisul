@@ -22,9 +22,11 @@ import {
   Eye,
   Maximize2,
   X,
-  Image as ImageIcon
+  Image as ImageIcon,
+  QrCode
 } from 'lucide-react';
 import BuildingEditModal from './BuildingEditModal';
+import QRCodeModal from './QRCodeModal';
 import { getDisplayImageUrl } from '../lib/imageUtils';
 
 interface BuildingManagerProps {
@@ -40,6 +42,7 @@ const BuildingManager: React.FC<BuildingManagerProps> = ({ facilities, onRefresh
   const [initialEditSection, setInitialEditSection] = useState<'basic' | 'detail'>('basic');
   const [searchQuery, setSearchQuery] = useState('');
   const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
+  const [qrItem, setQrItem] = useState<Hotspot | null>(null);
 
   const handleManualSync = async () => {
     setIsSyncing(true);
@@ -125,6 +128,7 @@ const BuildingManager: React.FC<BuildingManagerProps> = ({ facilities, onRefresh
                 <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">구조 및 용도</th>
                 <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">규모 / 연면적</th>
                 <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">최종 점검</th>
+                <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">QR</th>
                 <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">관리</th>
               </tr>
             </thead>
@@ -217,6 +221,17 @@ const BuildingManager: React.FC<BuildingManagerProps> = ({ facilities, onRefresh
                         </div>
                       </td>
 
+                      {/* QR */}
+                      <td className="px-6 py-5 text-center">
+                        <button 
+                          onClick={() => setQrItem(facility)}
+                          className="p-2.5 bg-slate-100 text-slate-500 hover:bg-blue-100 hover:text-blue-600 rounded-xl transition-all shadow-sm"
+                          title="건축물 QR 코드 생성"
+                        >
+                          <QrCode className="w-4 h-4" />
+                        </button>
+                      </td>
+
                       {/* Actions */}
                       <td className="px-6 py-5 text-right">
                         <div className="flex items-center justify-end space-x-2">
@@ -286,6 +301,15 @@ const BuildingManager: React.FC<BuildingManagerProps> = ({ facilities, onRefresh
             await onRefresh();
             setEditingBuilding(null);
           }} 
+        />
+      )}
+
+      {qrItem && (
+        <QRCodeModal 
+          title={qrItem.name} 
+          id={qrItem.id} 
+          type="building" 
+          onClose={() => setQrItem(null)} 
         />
       )}
 
